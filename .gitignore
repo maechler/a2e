@@ -12,3 +12,6 @@
 
 /tmp/*
 !/tmp/.gitkeep
+
+/doc/*
+!/doc/.gitkeep

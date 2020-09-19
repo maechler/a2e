@@ -16,3 +16,10 @@ source env/bin/activate;
 pip install -r requirements.txt;
 pip install -e .;
 ```
+
+### Documentation
+
+```
+pdoc --html --output-dir doc a2e;
+open doc/a2e/index.html;
+```
