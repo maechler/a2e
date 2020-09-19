@@ -15,3 +15,7 @@
 
 /doc/*
 !/doc/.gitkeep
+
+/config/*
+!/config/.gitkeep
+!/config/*.dist.yaml
