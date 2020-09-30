@@ -17,7 +17,11 @@ pip install -r requirements.txt;
 pip install -e .;
 ```
 
-### Documentation
+### Testing
+
+Run unit tests with: `python -m unittest discover tests/*`
+
+## Documentation
 
 ```
 pdoc --html --output-dir doc a2e;
