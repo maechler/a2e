@@ -1,0 +1,51 @@
+import traceback
+import yaml
+import json
+import os
+import sys
+from a2e.utility import instance_from_config, get_cli_arguments
+
+
+def load_config(config_path: str, config_format: str) -> dict:
+    with open(config_path) as config_file:
+        if config_format == 'yaml':
+            return yaml.load(config_file, Loader=yaml.FullLoader)
+        elif config_format == 'json':
+            return json.load(config_file)
+        else:
+            raise ValueError(f'Config format "{config_format}" is not supported.')
+
+
+def run(config_path: str, config_format: str) -> None:
+    if os.path.isfile(config_path):
+        try:
+            config = load_config(config_path, config_format)
+            pipeline = instance_from_config(config['pipeline'])
+
+            pipeline.run()
+        except:
+            traceback.print_exc()
+    elif os.path.isdir(config_path):
+        config_folder = config_path
+
+        for config_file in os.listdir(config_path):
+            try:
+                config_file_path = os.path.join(config_folder, config_file)
+                config = load_config(config_file_path, config_format)
+
+                sys.argv.append('-c')
+                sys.argv.append(config_file_path)
+
+                pipeline = instance_from_config(config['pipeline'])
+
+                pipeline.run()
+            except:
+                traceback.print_exc()
+    else:
+        print('Invalid config path "' + config_path + '" provided.')
+
+
+if __name__ == '__main__':
+    args = get_cli_arguments()
+
+    run(args.config_path, args.format)
