@@ -24,6 +24,6 @@ Run unit tests with: `python -m unittest discover tests/*`
 ## Documentation
 
 ```
-pdoc --html --output-dir doc a2e;
+pdoc --html --force --output-dir doc a2e;
 open doc/a2e/index.html;
 ```
