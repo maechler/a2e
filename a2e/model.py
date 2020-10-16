@@ -1,5 +1,6 @@
 from tensorflow.keras import Model, Input, regularizers, Sequential
 from tensorflow.keras.layers import Dense, Conv1D, Conv1DTranspose, MaxPooling1D, UpSampling1D, Dropout, Flatten, Reshape
+from tensorflow.python.keras.layers import LSTM, RepeatVector, TimeDistributed
 
 
 def create_fully_connected_autoencoder(
@@ -78,8 +79,8 @@ def create_conv_dense_autoencoder(
     kernel_size=4,
     activation='relu',
     padding='same',
+    number_of_features=1,
 ) -> Model:
-    number_of_features = 1
     input_layer = Input(shape=(input_dimension, number_of_features))
 
     layer = Conv1D(16, kernel_size, activation=activation, padding=padding)(input_layer)
@@ -118,9 +119,8 @@ def create_conv_transpose_autoencoder(
     strides=2,
     activation='relu',
     padding='same',
+    number_of_features=1,
 ) -> Model:
-    number_of_features = 1
-
     model = Sequential([
         Input(shape=(input_dimension, number_of_features)),
         Conv1D(filters=32, kernel_size=kernel_size, padding=padding, strides=strides, activation=activation),
@@ -131,6 +131,69 @@ def create_conv_transpose_autoencoder(
         Conv1DTranspose(filters=32, kernel_size=kernel_size, padding=padding, strides=strides, activation=activation),
         Conv1DTranspose(filters=1, kernel_size=kernel_size, padding=padding),
     ])
+
+    model.compile(optimizer=optimizer, loss=loss)
+
+    return model
+
+
+def create_lstm_autoencoder(
+    input_dimension,
+    output_dimension=None,
+    units=100,
+    activation='relu',
+    optimizer='adam',
+    loss='mse',
+    stateful=False,
+    number_of_features=1,
+) -> Model:
+    if output_dimension is None:
+        output_dimension = input_dimension
+
+    input_layer = Input(shape=(input_dimension, number_of_features))
+    layer = input_layer
+    layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=False)(layer)
+    #layer = LSTM(int(units/2), activation=activation, stateful=stateful, return_sequences=False)(layer)
+    encoder = layer
+
+    layer = RepeatVector(output_dimension)(layer)
+    #layer = LSTM(int(units/2), activation=activation, stateful=stateful, return_sequences=True)(layer)
+    layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=True)(layer)
+    layer = TimeDistributed(Dense(number_of_features))(layer)
+    decoder = layer
+
+    model = Model(input_layer, decoder)
+
+    model.compile(optimizer=optimizer, loss=loss)
+
+    return model
+
+
+def create_lstm_to_dense_autoencoder(
+    input_dimension,
+    output_dimension=None,
+    units=100,
+    activation='relu',
+    optimizer='adam',
+    loss='mse',
+    stateful=False,
+    number_of_features=1,
+) -> Model:
+    if output_dimension is None:
+        output_dimension = input_dimension
+
+    input_layer = Input(shape=(input_dimension, number_of_features))
+    layer = input_layer
+    layer = Dropout(rate=0.2)(layer)
+    layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=True)(layer)
+    layer = Dropout(rate=0.2)(layer)
+    layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=False)(layer)
+    encoder = layer
+
+    layer = Dense(output_dimension)(layer)
+    decoder = layer
+
+    model = Model(input_layer, decoder)
 
     model.compile(optimizer=optimizer, loss=loss)
 
