@@ -19,7 +19,9 @@ pip install -e .;
 
 ### Testing
 
-Run unit tests with: `python -m unittest discover tests/*`
+```
+python -m unittest discover tests/*
+```
 
 ## Documentation
 
