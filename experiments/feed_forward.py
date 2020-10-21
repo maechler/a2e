@@ -1,12 +1,12 @@
 from a2e.experiment import Experiment
 from a2e.datasets.bearing import load_data
-from a2e.model import create_feed_forward_autoencoder
+from a2e.models import create_feed_forward_autoencoder
 import numpy as np
 
 config = {
  'input_size': 1025,
  'encoding_size': 700,
- 'epochs': 15,
+ 'epochs': 10,
  'dataset': '800rpm',
  'data_column': 'fft',
  'validation_split': 0.1,
