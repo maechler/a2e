@@ -40,4 +40,5 @@ reconstruction_error = np.sum(np.abs(reconstruction_difference), axis=1)
 
 experiment.log('config', config)
 experiment.log_history(history)
-experiment.log_plot('metrics/reconstruction_error', y=reconstruction_error)
+experiment.log_model(model)
+experiment.log_plot('metrics/reconstruction_error', x=bearing_dataset.all(column=config['data_column'], as_numpy=False).index, y=reconstruction_error, time_formatting=True)

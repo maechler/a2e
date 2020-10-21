@@ -8,6 +8,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History
 from a2e.experiment import git_hash, git_diff
 from a2e.plotter import plot
+from a2e.plotter._plotter import plot_model_layer_weights
 
 
 class Experiment:
@@ -41,7 +42,7 @@ class Experiment:
         self.print(f'Destructor called for Experiment with id "{self.experiment_id}"')
 
     def log(self, key: str, value: any):
-        out_file_path = self._out_file(key)
+        out_file_path = self._out_path(key)
 
         with open(out_file_path, 'w') as out_file:
             if isinstance(value, dict) or isinstance(value, list):
@@ -49,13 +50,11 @@ class Experiment:
             else:
                 out_file.write(str(value))
 
-    def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, label=None, create_figure: bool = True):
+    def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, label=None, time_formatting: bool = False, create_figure: bool = True):
         self.log(key, y)
-        plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, label=label, create_figure=create_figure, out_path=self._out_file(key))
+        plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, label=label, time_formatting=time_formatting, create_figure=create_figure, out_path=self._out_path(key))
 
     def log_history(self, history: History):
-        self.log_model(history.model)
-
         if 'loss' in history.history and 'val_loss' in history.history:
             self.log('metrics/val_loss', history.history['val_loss'])
             self.log_plot('metrics/loss', y=history.history['val_loss'], label='validation loss', xlabel='epoch')
@@ -71,17 +70,20 @@ class Experiment:
         model_summary = []
         model.summary(print_fn=lambda x: model_summary.append(x))
 
-        plot_model(model, show_shapes=True, expand_nested=True, to_file=self._out_file('model/model.png'))
-        self.log('model/summary.txt', '\n'.join(model_summary))
+        plot_model(model, show_shapes=True, expand_nested=True, to_file=self._out_path('model/model.png'))
+        self.log('model/summary', '\n'.join(model_summary))
 
-    def _out_file(self, relative_file_path: str):
-        out_file_path = os.path.join(self.out_directory, relative_file_path)
-        out_directory = pathlib.Path(out_file_path).parent.absolute()
+        if len(model.get_weights()) > 0:
+            plot_model_layer_weights(model, out_path=self._out_path('model/layers', is_directory=True))
+
+    def _out_path(self, relative_path: str, is_directory: bool = False) -> str:
+        out_file_path = pathlib.Path(os.path.join(self.out_directory, relative_path))
+        out_directory = out_file_path.absolute() if is_directory else out_file_path.parent.absolute()
 
         if not os.path.isdir(out_directory):
             os.makedirs(out_directory)
 
-        return out_file_path
+        return str(out_file_path)
 
     def print(self, message: str):
         if self.verbose:
@@ -89,13 +91,13 @@ class Experiment:
 
     def callbacks(self, save_best: bool = True):
         callbacks = [
-            ModelCheckpoint(self._out_file('model/model.hdf5')),
-            CSVLogger(self._out_file('metrics/loss_log.csv'), separator=',', append=False),
+            ModelCheckpoint(self._out_path('model/model.hdf5')),
+            CSVLogger(self._out_path('metrics/loss_log.csv'), separator=',', append=False),
         ]
 
         if save_best:
             callbacks.append(ModelCheckpoint(
-                self._out_file('model/model.best.hdf5'),
+                self._out_path('model/model.best.hdf5'),
                 save_best_only=True,
                 monitor='val_loss',
                 mode='min')
