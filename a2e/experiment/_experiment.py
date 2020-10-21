@@ -3,21 +3,25 @@ import json
 import os
 import pathlib
 import datetime
+from numpy.random import seed
+from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History
 from a2e.experiment import git_hash, git_diff
-from a2e.plotter import plot
-from a2e.plotter._plotter import plot_model_layer_weights
+from a2e.plotter import plot, plot_model_layer_weights
 
 
 class Experiment:
 
-    def __init__(self, experiment_id: str = None, verbose: bool = True, out_directory: str = None, auto_datetime_directory: bool = True):
+    def __init__(self, experiment_id: str = None, verbose: bool = True, out_directory: str = None, auto_datetime_directory: bool = True, set_seeds: bool = True):
         self.experiment_id = experiment_id
         self.experiment_start = datetime.datetime.now()
         self.out_directory = out_directory
         self.verbose = verbose
+
+        if set_seeds:
+            self._set_seeds()
 
         if self.experiment_id is None:
             caller_frame = inspect.stack()[1]
@@ -40,6 +44,10 @@ class Experiment:
 
     def __del__(self):
         self.print(f'Destructor called for Experiment with id "{self.experiment_id}"')
+
+    def _set_seeds(self):
+        seed(1)
+        set_seed(1)
 
     def log(self, key: str, value: any):
         out_file_path = self._out_path(key)
