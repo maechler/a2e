@@ -80,7 +80,7 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cac
     data_set_description = yaml.load(open(data_set_description_path), Loader=yaml.FullLoader)
     data_set_path = get_file(data_set_key + '.csv.gz', origin=data_set_origin, cache_dir=cache_dir, cache_subdir='datasets/bearing', file_hash=data_set_description['data']['md5_hash'], hash_algorithm='md5')
 
-    data_frame = pd.read_csv(gzip.open(data_set_path, mode='rt'), parse_dates=[data_set_description['data']['index_column']], date_parser=timestamp_to_date_time, quotechar='"', sep=',')
+    data_frame = pd.read_csv(gzip.open(data_set_path, mode='rt'), parse_dates=[data_set_description['data']['index_column']], date_parser=lambda x: timestamp_to_date_time(float(x)), quotechar='"', sep=',')
     data_frame = data_frame.set_index(data_set_description['data']['index_column'])
     masks = {
         'train': (data_frame.index > data_set_description['windows']['train']['start']) & (data_frame.index <= data_set_description['windows']['train']['end']),
