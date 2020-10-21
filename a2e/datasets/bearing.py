@@ -2,13 +2,48 @@ import gzip
 import os
 from pathlib import Path
 import yaml
-from keras.utils import get_file
+from tensorflow.keras.utils import get_file
 import pandas as pd
 from pandas import DataFrame
 from a2e.utility import timestamp_to_date_time
 
 
-def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cache_dir: str = None) -> (DataFrame, dict):
+class BearingDataSet:
+
+    def __init__(self, data_frame: DataFrame, masks: dict):
+        self.data_frame = data_frame
+        self.masks = masks
+
+    def all(self, column, as_numpy=True):
+        return self.masked_data(column, as_numpy=as_numpy)
+
+    def train(self, column, as_numpy=True):
+        return self.masked_data(column, mask='train', as_numpy=as_numpy)
+
+    def test(self, column, split=False, as_numpy=True):
+        if split:
+            test_healthy = self.masked_data(column, mask='test_healthy', as_numpy=as_numpy)
+            test_anomalous = self.masked_data(column, mask='test_anomalous', as_numpy=as_numpy)
+
+            return test_healthy, test_anomalous
+        else:
+            return self.masked_data(column, mask='test', as_numpy=as_numpy)
+
+    def masked_data(self, column, mask: str = None, as_numpy=True):
+        if mask is not None:
+            masked_data_frame = self.data_frame.loc[self.masks[mask]]
+        else:
+            masked_data_frame = self.data_frame
+
+        if column == 'fft':
+            data_series = masked_data_frame.iloc[:, 6:]
+        else:
+            data_series = masked_data_frame[column]
+
+        return data_series.to_numpy() if as_numpy else data_series
+
+
+def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cache_dir: str = None) -> BearingDataSet:
     """Loads one of the bearing datasets.
 
     Parameters
@@ -54,10 +89,4 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cac
         'test_anomalous': (data_frame.index > data_set_description['windows']['test_anomalous']['start']) & (data_frame.index <= data_set_description['windows']['test_anomalous']['end']),
     }
 
-    return data_frame, masks
-
-
-def mask_data_frame(data_frame: DataFrame, mask: dict) -> DataFrame:
-    data_frame_mask = (data_frame.index > mask['start']) & (data_frame.index <= mask['end'])
-
-    return data_frame.loc[data_frame_mask]
+    return BearingDataSet(data_frame, masks)
