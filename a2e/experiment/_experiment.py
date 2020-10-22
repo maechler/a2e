@@ -3,6 +3,9 @@ import json
 import os
 import pathlib
 import datetime
+import shutil
+import traceback
+from typing import Callable
 from numpy.random import seed
 from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
@@ -10,6 +13,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History
 from a2e.experiment import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
+from a2e.utility import grid_run
 
 
 class Experiment:
@@ -19,6 +23,8 @@ class Experiment:
         self.experiment_start = datetime.datetime.now()
         self.out_directory = out_directory
         self.verbose = verbose
+        self.run_count = 0
+        self.run_id = None
 
         if set_seeds:
             self._set_seeds()
@@ -35,6 +41,9 @@ class Experiment:
 
         if auto_datetime_directory:
             self.out_directory = os.path.join(self.out_directory, self.experiment_start.strftime('%Y_%m_%d/%H_%M_%S'))
+
+        if os.path.isdir(self.out_directory):
+            shutil.rmtree(self.out_directory)
 
         if not os.path.isdir(self.out_directory):
             os.makedirs(self.out_directory)
@@ -113,6 +122,36 @@ class Experiment:
 
         return callbacks
 
-        experiment_id = os.path.splitext(os.path.basename(caller_filename))[0]
+    def grid_run(self, param_grid: dict, run_callable: Callable):
+        experiment = self
 
-    return Experiment(experiment_id)
+        def run_callable_wrapper(params):
+            experiment.start_run()
+            experiment.log('run_config', params)
+
+            try:
+                run_callable(params)
+            except Exception:
+                experiment.log('run_error', traceback.format_exc())
+
+            experiment.end_run()
+
+        grid_run(param_grid, run_callable_wrapper)
+
+    def start_run(self):
+        self.run_count = self.run_count + 1
+
+        if self.run_id is None:
+            self.run_id = self.run_count
+
+        self.out_directory = os.path.join(self.out_directory, f'runs/{self.run_id}')
+
+        if os.path.isdir(self.out_directory):
+            shutil.rmtree(self.out_directory)
+
+        if not os.path.isdir(self.out_directory):
+            os.makedirs(self.out_directory)
+
+    def end_run(self):
+        self.out_directory = self.out_directory.rstrip(f'runs/{self.run_id}')
+        self.run_id = None
