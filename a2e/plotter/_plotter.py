@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import Model
 import numpy as np
 import matplotlib.dates as mdates
-from tensorflow.keras.layers import Dense, Conv1D, Conv1DTranspose, MaxPooling1D, UpSampling1D, Dropout, Flatten, Reshape
+from tensorflow.keras.layers import Conv1D
 
 style_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pretty.mplstyle')
 plt.style.use(style_path)
