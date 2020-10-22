@@ -4,9 +4,6 @@
 *.pyc
 .DS_Store
 
-/config/*
-!/config/config.dist.yaml
-
 /out/*
 !/out/.gitkeep
 
@@ -15,7 +12,3 @@
 
 /doc/*
 !/doc/.gitkeep
-
-/config/*
-!/config/.gitkeep
-!/config/*.dist.yaml
