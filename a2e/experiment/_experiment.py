@@ -122,10 +122,13 @@ class Experiment:
 
         return callbacks
 
-    def grid_run(self, param_grid: dict, run_callable: Callable):
+    def grid_run(self, param_grid: dict, run_callable: Callable, auto_run_id: bool = True):
         experiment = self
 
         def run_callable_wrapper(params):
+            if auto_run_id:
+                self.run_id = '_'.join(params.values())
+
             experiment.start_run()
             experiment.log('run_config', params)
 
@@ -153,5 +156,5 @@ class Experiment:
             os.makedirs(self.out_directory)
 
     def end_run(self):
-        self.out_directory = self.out_directory.rstrip(f'runs/{self.run_id}')
+        self.out_directory = self.out_directory.replace(f'runs/{self.run_id}', '')
         self.run_id = None
