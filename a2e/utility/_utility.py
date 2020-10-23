@@ -1,3 +1,4 @@
+import numpy as np
 from datetime import datetime, timezone, tzinfo
 from itertools import product
 from typing import Callable
@@ -19,3 +20,14 @@ def grid_run(param_grid: dict, run_callable: Callable):
             param_dict[param_name] = param_value
 
         run_callable(param_dict)
+
+
+def build_samples(data: np.ndarray, sample_length: int):
+    drop_data = len(data) % sample_length
+
+    if drop_data > 0:
+        samples = data[:-drop_data].reshape(-1, sample_length)
+    else:
+        samples = data.reshape(-1, sample_length)
+
+    return samples
