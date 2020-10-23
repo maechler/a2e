@@ -3,11 +3,15 @@ from math import ceil
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import Model
 import numpy as np
+import matplotlib
 import matplotlib.dates as mdates
 from tensorflow.keras.layers import Conv1D
 
 style_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pretty.mplstyle')
 plt.style.use(style_path)
+
+# See https://stackoverflow.com/questions/37470734/matplotlib-giving-error-overflowerror-in-draw-path-exceeded-cell-block-limit
+matplotlib.rcParams['agg.path.chunksize'] = 10000
 
 
 def plot_model_layer_weights(model: Model, out_path=None, show=False):
