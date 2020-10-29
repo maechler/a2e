@@ -134,7 +134,7 @@ class Experiment:
 
             try:
                 run_callable(params)
-            except Exception:
+            except:
                 experiment.log('run_error', traceback.format_exc())
 
             experiment.end_run()
