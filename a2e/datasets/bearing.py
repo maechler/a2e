@@ -1,9 +1,10 @@
 import gzip
 import os
-from pathlib import Path
 import yaml
-from tensorflow.keras.utils import get_file
 import pandas as pd
+from pathlib import Path
+from typing import Callable
+from tensorflow.keras.utils import get_file
 from pandas import DataFrame
 from a2e.utility import timestamp_to_date_time
 
@@ -14,26 +15,29 @@ class BearingDataSet:
         self.data_frame = data_frame
         self.masks = masks
 
-    def all(self, column, as_numpy=True):
-        return self.masked_data(column, as_numpy=as_numpy)
+    def all(self, column, as_numpy=False, modifier: Callable = None):
+        return self.masked_data(column, as_numpy=as_numpy, modifier=modifier)
 
-    def train(self, column, as_numpy=True):
-        return self.masked_data(column, mask='train', as_numpy=as_numpy)
+    def train(self, column, as_numpy=False, modifier: Callable = None):
+        return self.masked_data(column, mask='train', as_numpy=as_numpy, modifier=modifier)
 
-    def test(self, column, split=False, as_numpy=True):
+    def test(self, column, split=False, as_numpy=False, modifier: Callable = None):
         if split:
-            test_healthy = self.masked_data(column, mask='test_healthy', as_numpy=as_numpy)
-            test_anomalous = self.masked_data(column, mask='test_anomalous', as_numpy=as_numpy)
+            test_healthy = self.masked_data(column, mask='test_healthy', as_numpy=as_numpy, modifier=modifier)
+            test_anomalous = self.masked_data(column, mask='test_anomalous', as_numpy=as_numpy, modifier=modifier)
 
             return test_healthy, test_anomalous
         else:
-            return self.masked_data(column, mask='test', as_numpy=as_numpy)
+            return self.masked_data(column, mask='test', as_numpy=as_numpy, modifier=modifier)
 
-    def masked_data(self, column, mask: str = None, as_numpy=True):
+    def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None):
         if mask is not None:
             masked_data_frame = self.data_frame.loc[self.masks[mask]]
         else:
             masked_data_frame = self.data_frame
+
+        if modifier is not None:
+            masked_data_frame = modifier(masked_data_frame)
 
         if column == 'fft':
             data_series = masked_data_frame.iloc[:, 4:]
