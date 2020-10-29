@@ -36,7 +36,7 @@ class BearingDataSet:
             masked_data_frame = self.data_frame
 
         if column == 'fft':
-            data_series = masked_data_frame.iloc[:, 6:]
+            data_series = masked_data_frame.iloc[:, 4:]
         else:
             data_series = masked_data_frame[column]
 
