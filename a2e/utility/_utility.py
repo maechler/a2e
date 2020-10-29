@@ -22,12 +22,14 @@ def grid_run(param_grid: dict, run_callable: Callable):
         run_callable(param_dict)
 
 
-def build_samples(data: np.ndarray, sample_length: int):
-    drop_data = len(data) % sample_length
-
-    if drop_data > 0:
-        samples = data[:-drop_data].reshape(-1, sample_length)
+def build_samples(data: np.ndarray, target_sample_length: int, target_dimensions: int = 2):
+    if len(data.shape) == 1:
+        drop_data = len(data) % target_sample_length
+        samples = data[:-drop_data]
     else:
-        samples = data.reshape(-1, sample_length)
+        input_sample_length = data.shape[1]
+        drop_data = input_sample_length % target_sample_length
+        drop_start = input_sample_length - drop_data
+        samples = np.delete(data, np.s_[drop_start:input_sample_length], axis=1)
 
-    return samples
+    return samples.reshape(-1, target_sample_length) if target_dimensions == 2 else samples.reshape(-1, target_sample_length, 1)

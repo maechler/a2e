@@ -50,9 +50,19 @@ class TestUtility(unittest.TestCase):
 
         self.assertListEqual(actual_param_list, expected_param_list)
 
-    def test_build_samples(self):
+    def test_build_samples_from_1d(self):
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
         expected_samples_2 = [[1, 2], [3, 4], [5, 6], [7, 8]]
+        expected_samples_3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+        actual_data_2 = build_samples(data, 2).tolist()
+        actual_data_3 = build_samples(data, 3).tolist()
+
+        self.assertListEqual(actual_data_2, expected_samples_2)
+        self.assertListEqual(actual_data_3, expected_samples_3)
+
+    def test_build_samples_from_2d(self):
+        data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        expected_samples_2 = [[1, 2], [4, 5], [7, 8]]
         expected_samples_3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
         actual_data_2 = build_samples(data, 2).tolist()
         actual_data_3 = build_samples(data, 3).tolist()
