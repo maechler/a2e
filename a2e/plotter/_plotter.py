@@ -87,7 +87,8 @@ def plot(
     out_formats=['png'],
     show=False,
     show_legend=True,
-    create_figure=True
+    create_figure=True,
+    close=True,
 ):
     if create_figure:
         fig, ax = plt.subplots()
@@ -134,5 +135,6 @@ def plot(
 
     if show:
         plt.show()
-    else:
+
+    if close:
         plt.close()

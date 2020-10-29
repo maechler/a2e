@@ -67,14 +67,14 @@ class Experiment:
             else:
                 out_file.write(str(value))
 
-    def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True):
+    def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
         self.log(key, y)
-        plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, ylim=ylim, label=label, time_formatting=time_formatting, create_figure=create_figure, out_path=self._out_path(key))
+        plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, ylim=ylim, label=label, time_formatting=time_formatting, create_figure=create_figure, close=close, out_path=self._out_path(key))
 
     def log_history(self, history: History):
         if 'loss' in history.history and 'val_loss' in history.history:
             self.log('metrics/val_loss', history.history['val_loss'])
-            self.log_plot('metrics/loss', y=history.history['val_loss'], label='validation loss', xlabel='epoch')
+            self.log_plot('metrics/loss', y=history.history['val_loss'], label='validation loss', xlabel='epoch', close=False)
             self.log_plot('metrics/loss', y=history.history['loss'], label='loss', xlabel='epoch', create_figure=False)
         else:
             if 'loss' in history.history:
