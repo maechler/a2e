@@ -134,3 +134,5 @@ def plot(
 
     if show:
         plt.show()
+    else:
+        plt.close()
