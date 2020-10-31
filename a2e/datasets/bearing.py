@@ -3,7 +3,7 @@ import os
 import yaml
 import pandas as pd
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Union, Tuple
 from tensorflow.keras.utils import get_file
 from pandas import DataFrame
 from a2e.utility import timestamp_to_date_time
@@ -15,13 +15,13 @@ class BearingDataSet:
         self.data_frame = data_frame
         self.masks = masks
 
-    def all(self, column, as_numpy=False, modifier: Callable = None):
+    def all(self, column, as_numpy=False, modifier: Callable = None) -> DataFrame:
         return self.masked_data(column, as_numpy=as_numpy, modifier=modifier)
 
-    def train(self, column, as_numpy=False, modifier: Callable = None):
+    def train(self, column, as_numpy=False, modifier: Callable = None) -> DataFrame:
         return self.masked_data(column, mask='train', as_numpy=as_numpy, modifier=modifier)
 
-    def test(self, column, split=False, as_numpy=False, modifier: Callable = None):
+    def test(self, column, split=False, as_numpy=False, modifier: Callable = None) -> Union[DataFrame, Tuple[DataFrame, DataFrame]]:
         if split:
             test_healthy = self.masked_data(column, mask='test_healthy', as_numpy=as_numpy, modifier=modifier)
             test_anomalous = self.masked_data(column, mask='test_anomalous', as_numpy=as_numpy, modifier=modifier)
@@ -37,7 +37,7 @@ class BearingDataSet:
             'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier)
         }
 
-    def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None):
+    def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None) -> DataFrame:
         if mask is not None:
             masked_data_frame = self.data_frame.loc[self.masks[mask]]
         else:
