@@ -30,6 +30,13 @@ class BearingDataSet:
         else:
             return self.masked_data(column, mask='test', as_numpy=as_numpy, modifier=modifier)
 
+    def as_dict(self, column, as_numpy=False, modifier: Callable = None):
+        return {
+            'train': self.train(column=column, as_numpy=as_numpy, modifier=modifier),
+            'test':  self.test(column=column, as_numpy=as_numpy, modifier=modifier),
+            'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier)
+        }
+
     def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None):
         if mask is not None:
             masked_data_frame = self.data_frame.loc[self.masks[mask]]
