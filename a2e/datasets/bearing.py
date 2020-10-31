@@ -47,11 +47,11 @@ class BearingDataSet:
             masked_data_frame = modifier(masked_data_frame)
 
         if column == 'fft':
-            data_series = masked_data_frame.iloc[:, 4:]
+            masked_data_frame = masked_data_frame.iloc[:, 4:]
         else:
-            data_series = masked_data_frame[column]
+            masked_data_frame = masked_data_frame[[column]]
 
-        return data_series.to_numpy() if as_numpy else data_series
+        return masked_data_frame.to_numpy() if as_numpy else masked_data_frame
 
 
 def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cache_dir: str = None) -> BearingDataSet:
