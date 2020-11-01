@@ -11,8 +11,13 @@ def mad(data: list):
     return mad
 
 
-def compute_reconstruction_error(input_values, reconstruction):
+def compute_reconstruction_error(input_values, reconstruction, has_multiple_features: bool = True):
     deviations = input_values - reconstruction
-    reconstruction_error = np.sum(np.abs(deviations), axis=1)
+    reconstruction_error = np.abs(deviations)
+
+    if has_multiple_features:
+        reconstruction_error = np.sum(reconstruction_error, axis=1)
+    else:
+        reconstruction_error = reconstruction_error.flatten()
 
     return reconstruction_error
