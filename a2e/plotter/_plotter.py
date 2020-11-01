@@ -29,10 +29,11 @@ def plot_dense_layer(layer, out_path=None, show=False):
     figure = plt.figure()
 
     plt.tight_layout(pad=0, w_pad=0, h_pad=0)
-    plt.matshow(weights, fignum=figure.number)
+    cax = plt.matshow(weights, fignum=figure.number)
 
     ax = plt.gca()
     ax.grid(False)
+    figure.colorbar(cax)
 
     figure.savefig(os.path.join(out_path, f'{name}.png'), format='png')
 
