@@ -5,14 +5,18 @@ import pathlib
 import datetime
 import shutil
 import traceback
-from typing import Callable
+import numpy as np
+from typing import Callable, Dict, List
 from numpy.random import seed
+from pandas import DataFrame
 from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
 from a2e.experiment import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
+from a2e.processing.health import compute_health_score
+from a2e.processing.stats import compute_reconstruction_error, mad
 from a2e.utility import grid_run
 
 
@@ -59,6 +63,8 @@ class Experiment:
         set_seed(1)
 
     def log(self, key: str, value: any):
+        self.print(f'Logging "{key}"')
+
         out_file_path = self._out_path(key)
 
         with open(out_file_path, 'w') as out_file:
@@ -68,10 +74,14 @@ class Experiment:
                 out_file.write(str(value))
 
     def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
+        self.print(f'Logging plot "{key}"')
+
         self.log(key, y)
         plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, ylim=ylim, label=label, time_formatting=time_formatting, create_figure=create_figure, close=close, out_path=self._out_path(key))
 
     def log_history(self, history: History):
+        self.print('Logging history')
+
         if 'loss' in history.history and 'val_loss' in history.history:
             self.log('metrics/val_loss', history.history['val_loss'])
             self.log_plot('metrics/loss', y=history.history['val_loss'], label='validation loss', xlabel='epoch', close=False)
@@ -84,6 +94,8 @@ class Experiment:
                 self.log_plot('metrics/val_loss', y=history.history['val_loss'], xlabel='epoch', ylabel='validation loss')
 
     def log_model(self, model: Model):
+        self.print('Logging model')
+
         model_summary = []
         model.summary(print_fn=lambda x: model_summary.append(x))
 
@@ -92,6 +104,43 @@ class Experiment:
 
         if len(model.get_weights()) > 0:
             plot_model_layer_weights(model, out_path=self._out_path('model/layers', is_directory=True))
+
+    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], pre_processing: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
+        self.print('Logging predictions')
+
+        train_reconstruction_error = None
+
+        if 'train' in data_frames:
+            train_samples = data_frames['train'].to_numpy() if pre_processing is None else pre_processing(data_frames['train'])
+            train_reconstruction_error = compute_reconstruction_error(train_samples, model.predict(train_samples), has_multiple_features=has_multiple_features)
+
+        for key, data_frame in data_frames.items():
+            samples = data_frame.to_numpy() if pre_processing is None else pre_processing(data_frame)
+            reconstruction = model.predict(samples)
+            reconstruction_error = compute_reconstruction_error(samples, reconstruction, has_multiple_features=has_multiple_features)
+
+            if len(data_frame.index) != len(reconstruction_error):
+                cut_rows = len(reconstruction_error) - len(data_frame.index)
+                data_frame = data_frame.iloc[:cut_rows].copy()
+
+            data_frame['reconstruction_error'] = reconstruction_error
+            data_frame['reconstruction_error_rolling'] = data_frame['reconstruction_error'].rolling(window=rolling_window_size).median()
+
+            self.log(f'metrics/{key}/median', np.median(reconstruction_error))
+            self.log(f'metrics/{key}/mad', mad(reconstruction_error))
+
+            self.log_plot(f'metrics/{key}/reconstruction_error', x=data_frame.index, y=reconstruction_error, label='reconstruction error', time_formatting=True, close=False)
+            self.log_plot(f'metrics/{key}/reconstruction_error_rolling', x=data_frame.index, y=data_frame['reconstruction_error_rolling'], label='rolling reconstruction error', time_formatting=True, create_figure=False)
+
+            if train_reconstruction_error is not None:
+                data_frame['health_score'] = compute_health_score(train_reconstruction_error, reconstruction_error)
+
+                self.log_plot(f'metrics/{key}/health_score', x=data_frame.index, y=data_frame['health_score'], label='health score', ylim=[0, 1], time_formatting=True, close=False)
+                self.log_plot(f'metrics/{key}/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median(), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
+
+            for sample_index in log_samples:
+                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples[sample_index], ylim=[0, 1], label='input', close=False)
+                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=reconstruction[sample_index], ylim=[0, 1], label='reconstruction', create_figure=False)
 
     def _out_path(self, relative_path: str, is_directory: bool = False) -> str:
         out_file_path = pathlib.Path(os.path.join(self.out_directory, relative_path))
@@ -104,12 +153,18 @@ class Experiment:
 
     def print(self, message: str):
         if self.verbose:
-            print(f'[{self.experiment_id}] {message}')
+            message_prefix = f'[{self.experiment_id}]'
+
+            if self.run_id is not None:
+                message_prefix = message_prefix + f'[{self.run_id}]'
+
+            print(f'{message_prefix} {message}')
 
     def callbacks(self, save_best: bool = True):
         callbacks = [
             ModelCheckpoint(self._out_path('model/model.hdf5')),
             CSVLogger(self._out_path('metrics/loss_log.csv'), separator=',', append=False),
+            ExperimentCallback(self),
         ]
 
         if save_best:
@@ -129,6 +184,7 @@ class Experiment:
             if auto_run_id:
                 self.run_id = '_'.join(params.values())
 
+            experiment.print(f'Starting run "{self.run_id}"')
             experiment.start_run()
             experiment.log('run_config', params)
 
@@ -158,3 +214,23 @@ class Experiment:
     def end_run(self):
         self.out_directory = self.out_directory.replace(f'runs/{self.run_id}', '')
         self.run_id = None
+
+
+class ExperimentCallback(Callback):
+    def __init__(self, experiment: Experiment):
+        super().__init__()
+
+        self.experiment = experiment
+
+    def on_epoch_end(self, epoch, logs={}):
+        epochs = self.params['epochs']
+        loss = logs.get('loss')
+        val_loss = logs.get('val_loss')
+
+        if loss is not None:
+            loss = '{:.4f}'.format(loss)
+
+        if val_loss is not None:
+            val_loss = '{:.4f}'.format(val_loss)
+
+        self.experiment.print(f'Epoch {epoch+1} of {epochs} end: loss={loss}, val_loss={val_loss}')
