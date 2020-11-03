@@ -58,7 +58,7 @@ class Experiment:
         self.log('git/hash', git_hash())
         self.log('git/diff', git_diff())
 
-    def __del__(self):
+    def __exit__(self):
         self.log('timing.log', f'experiment_end={datetime.datetime.now()}')
         self.log('timing.log', f'experiment_duration={datetime.datetime.now() - self.experiment_start}')
 
@@ -143,8 +143,10 @@ class Experiment:
                 self.log_plot(f'metrics/{key}/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median(), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
 
             for sample_index in log_samples:
-                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples[sample_index], ylim=[0, 1], label='input', close=False)
-                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=reconstruction[sample_index], ylim=[0, 1], label='reconstruction', create_figure=False)
+                ylim = [0, 1] if all(0.0 <= value <= 1.0 for value in samples[sample_index]) else None
+
+                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples[sample_index], ylim=ylim, label='input', close=False)
+                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=reconstruction[sample_index], ylim=ylim, label='reconstruction', create_figure=False)
 
     def _out_path(self, relative_path: str, is_directory: bool = False) -> str:
         out_file_path = pathlib.Path(os.path.join(self.out_directory, relative_path))
@@ -186,7 +188,7 @@ class Experiment:
 
         def run_callable_wrapper(params):
             if auto_run_id:
-                self.run_id = '_'.join(params.values())
+                self.run_id = '_'.join(map(str, params.values()))
 
             experiment.print(f'Starting run "{self.run_id}"')
             experiment.start_run()
