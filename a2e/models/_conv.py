@@ -35,6 +35,7 @@ def create_conv_dense_autoencoder(
     optimizer='adam',
     loss='binary_crossentropy',
     kernel_size=4,
+    dropout_rate=0.2,
     activation='relu',
     padding='same',
     number_of_features=1,
@@ -43,19 +44,19 @@ def create_conv_dense_autoencoder(
 
     layer = Conv1D(16, kernel_size, activation=activation, padding=padding)(input_layer)
     #layer = MaxPooling1D(2)(layer)
-    layer = Dropout(rate=0.2)(layer)
+    layer = Dropout(rate=dropout_rate)(layer)
     layer = Conv1D(8, kernel_size, activation=activation, padding=padding)(layer)
 
     layer = Flatten()(layer)
-    layer = Dense(256)(layer)
-    layer = Dense(512)(layer)
+    layer = Dense(int((input_dimension*8)/2))(layer)
+    layer = Dense(input_dimension*8)(layer)
 
     #encoder = Model(input_layer, layer)
 
     layer = Reshape((input_dimension, 8))(layer)
 
     layer = Conv1D(8, kernel_size, activation=activation, padding=padding)(layer)
-    layer = Dropout(rate=0.2)(layer)
+    layer = Dropout(rate=dropout_rate)(layer)
     #layer = UpSampling1D(2)(layer)
     layer = Conv1D(16, kernel_size, activation=activation, padding=padding)(layer)
 
