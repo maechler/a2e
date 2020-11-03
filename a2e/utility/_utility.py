@@ -1,3 +1,4 @@
+import importlib
 import numpy as np
 from datetime import datetime, timezone, tzinfo
 from itertools import product
@@ -33,3 +34,9 @@ def build_samples(data: np.ndarray, target_sample_length: int, target_dimensions
         samples = np.delete(data, np.s_[drop_start:input_sample_length], axis=1)
 
     return samples.reshape(-1, target_sample_length) if target_dimensions == 2 else samples.reshape(-1, target_sample_length, 1)
+
+
+def load_from_module(identifier: str) -> any:
+    module_name, item_name = identifier.rsplit('.', 1)
+
+    return getattr(importlib.import_module(module_name), item_name)
