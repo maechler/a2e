@@ -53,12 +53,14 @@ class Experiment:
         if not os.path.isdir(self.out_directory):
             os.makedirs(self.out_directory)
 
+        self.print(f'Created new experiment "{self.experiment_id}"')
         self.log('timing.log', f'experiment_start={self.experiment_start}')
         self.log('git/hash', git_hash())
         self.log('git/diff', git_diff())
 
     def __del__(self):
         self.log('timing.log', f'experiment_end={datetime.datetime.now()}')
+        self.log('timing.log', f'experiment_duration={datetime.datetime.now() - self.experiment_start}')
 
     def _set_seeds(self):
         seed(1)
