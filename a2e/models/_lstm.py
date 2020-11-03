@@ -7,6 +7,7 @@ def create_lstm_autoencoder(
     input_dimension,
     output_dimension=None,
     units=100,
+    dropout_rate=0.2,
     activation='relu',
     optimizer='adam',
     loss='mse',
@@ -19,11 +20,11 @@ def create_lstm_autoencoder(
     input_layer = Input(shape=(input_dimension, number_of_features))
     layer = input_layer
     layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=False)(layer)
-    #layer = LSTM(int(units/2), activation=activation, stateful=stateful, return_sequences=False)(layer)
+    layer = Dropout(rate=dropout_rate)(layer)
     encoder = layer
 
     layer = RepeatVector(output_dimension)(layer)
-    #layer = LSTM(int(units/2), activation=activation, stateful=stateful, return_sequences=True)(layer)
+    layer = Dropout(rate=dropout_rate)(layer)
     layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=True)(layer)
     layer = TimeDistributed(Dense(number_of_features))(layer)
     decoder = layer
@@ -39,6 +40,7 @@ def create_lstm_to_dense_autoencoder(
     input_dimension,
     output_dimension=None,
     units=100,
+    dropout_rate=0.2,
     activation='relu',
     optimizer='adam',
     loss='mse',
@@ -50,9 +52,9 @@ def create_lstm_to_dense_autoencoder(
 
     input_layer = Input(shape=(input_dimension, number_of_features))
     layer = input_layer
-    layer = Dropout(rate=0.2)(layer)
+    layer = Dropout(rate=dropout_rate)(layer)
     layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=True)(layer)
-    layer = Dropout(rate=0.2)(layer)
+    layer = Dropout(rate=dropout_rate)(layer)
     layer = LSTM(units, activation=activation, stateful=stateful, return_sequences=False)(layer)
     encoder = layer
 
