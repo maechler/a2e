@@ -1,6 +1,7 @@
 import gzip
 import os
 import yaml
+import pathlib
 import pandas as pd
 from pathlib import Path
 from typing import Callable, Union, Tuple
@@ -54,7 +55,7 @@ class BearingDataSet:
         return masked_data_frame.to_numpy() if as_numpy else masked_data_frame
 
 
-def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cache_dir: str = None) -> BearingDataSet:
+def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', cache_dir: str = None) -> BearingDataSet:
     """Loads one of the bearing datasets.
 
     Parameters
@@ -75,8 +76,17 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../a2e_data/data', cac
     """
     if a2e_data_path is None:
         a2e_data_path = 'https://github.com/maechler/a2e-data/raw/master/data/'
-    else:
-        a2e_data_path = 'file://' + os.path.abspath(a2e_data_path)
+
+    if not a2e_data_path.startswith('http') and not a2e_data_path.startswith('file://'):
+        if os.path.isabs(a2e_data_path):
+            a2e_data_path = 'file://' + os.path.abspath(a2e_data_path)
+        else:
+            bearing_module_path = pathlib.Path(__file__).parent.absolute()
+            absolute_data_path = os.path.abspath(os.path.join(bearing_module_path, a2e_data_path))
+            if os.name == 'nt':
+                absolute_data_path = f'/{absolute_data_path}'.replace('\\', '/')
+
+            a2e_data_path = 'file://' + absolute_data_path
 
     if cache_dir is None:
         cache_dir = os.path.join(Path.home(), '.a2e')
