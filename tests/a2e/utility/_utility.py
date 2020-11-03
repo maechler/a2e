@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
-from a2e.utility import grid_run, build_samples
+from typing import Callable
+from a2e.utility import grid_run, build_samples, load_from_module
 
 
 class TestUtility(unittest.TestCase):
@@ -69,6 +70,11 @@ class TestUtility(unittest.TestCase):
 
         self.assertListEqual(actual_data_2, expected_samples_2)
         self.assertListEqual(actual_data_3, expected_samples_3)
+
+    def test_load_from_module(self):
+        loaded_function = load_from_module('a2e.utility.timestamp_to_date_time')
+
+        self.assertIsInstance(loaded_function, Callable)
 
 
 if __name__ == '__main__':

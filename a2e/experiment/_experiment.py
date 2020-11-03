@@ -28,6 +28,7 @@ class Experiment:
         self.out_directory = out_directory
         self.verbose = verbose
         self.run_count = 0
+        self.run_start = None
         self.run_id = None
 
         if set_seeds:
@@ -52,11 +53,12 @@ class Experiment:
         if not os.path.isdir(self.out_directory):
             os.makedirs(self.out_directory)
 
+        self.log('timing.log', f'experiment_start={self.experiment_start}')
         self.log('git/hash', git_hash())
         self.log('git/diff', git_diff())
 
     def __del__(self):
-        self.print(f'Destructor called for Experiment with id "{self.experiment_id}"')
+        self.log('timing.log', f'experiment_end={datetime.datetime.now()}')
 
     def _set_seeds(self):
         seed(1)
@@ -67,11 +69,11 @@ class Experiment:
 
         out_file_path = self._out_path(key)
 
-        with open(out_file_path, 'w') as out_file:
+        with open(out_file_path, 'a') as out_file:
             if isinstance(value, dict) or isinstance(value, list):
-                out_file.write(json.dumps(value, indent=2))
+                out_file.write(json.dumps(value, indent=2) + '\n')
             else:
-                out_file.write(str(value))
+                out_file.write(str(value) + '\n')
 
     def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
         self.print(f'Logging plot "{key}"')
@@ -199,10 +201,12 @@ class Experiment:
 
     def start_run(self):
         self.run_count = self.run_count + 1
+        self.run_start = datetime.datetime.now()
 
         if self.run_id is None:
             self.run_id = self.run_count
 
+        self.log('timing.log', f'start_run[{self.run_id}]={self.run_start}')
         self.out_directory = os.path.join(self.out_directory, f'runs/{self.run_id}')
 
         if os.path.isdir(self.out_directory):
@@ -213,6 +217,8 @@ class Experiment:
 
     def end_run(self):
         self.out_directory = self.out_directory.replace(f'runs/{self.run_id}', '')
+        self.log('timing.log', f'end_run[{self.run_id}]={datetime.datetime.now()}')
+        self.log('timing.log', f'run_duration[{self.run_id}]={datetime.datetime.now() - self.run_start}')
         self.run_id = None
 
 
