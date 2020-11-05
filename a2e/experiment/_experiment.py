@@ -109,19 +109,25 @@ class Experiment:
         if len(model.get_weights()) > 0:
             plot_model_layer_weights(model, out_path=self._out_path('model/layers', is_directory=True))
 
-    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], pre_processing: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
+    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
         self.print('Logging predictions')
 
+        pre_processing_x = pre_processing_x if pre_processing_x is not None else pre_processing
+        pre_processing_y = pre_processing_y if pre_processing_y is not None else pre_processing
         train_reconstruction_error = None
 
         if 'train' in data_frames:
-            train_samples = data_frames['train'].to_numpy() if pre_processing is None else pre_processing(data_frames['train'])
-            train_reconstruction_error = compute_reconstruction_error(train_samples, model.predict(train_samples), has_multiple_features=has_multiple_features)
+            train_data_frame = data_frames['train']
+            train_samples_x = pre_processing_x(train_data_frame) if pre_processing_x is not None else train_data_frame.to_numpy()
+            train_samples_y = pre_processing_y(train_data_frame) if pre_processing_y is not None else train_data_frame.to_numpy()
+            train_reconstruction_error = compute_reconstruction_error(train_samples_y, model.predict(train_samples_x), has_multiple_features=has_multiple_features)
 
         for key, data_frame in data_frames.items():
-            samples = data_frame.to_numpy() if pre_processing is None else pre_processing(data_frame)
-            reconstruction = model.predict(samples)
-            reconstruction_error = compute_reconstruction_error(samples, reconstruction, has_multiple_features=has_multiple_features)
+            samples_x = pre_processing_x(data_frame) if pre_processing_x is not None else data_frame.to_numpy()
+            samples_y = pre_processing_y(data_frame) if pre_processing_y is not None else data_frame.to_numpy()
+
+            reconstruction = model.predict(samples_x)
+            reconstruction_error = compute_reconstruction_error(samples_y, reconstruction, has_multiple_features=has_multiple_features)
 
             if len(data_frame.index) != len(reconstruction_error):
                 cut_rows = len(reconstruction_error) - len(data_frame.index)
@@ -143,9 +149,9 @@ class Experiment:
                 self.log_plot(f'metrics/{key}/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median(), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
 
             for sample_index in log_samples:
-                ylim = [0, 1] if all(0.0 <= value <= 1.0 for value in samples[sample_index]) else None
+                ylim = [0, 1] if all(0.0 <= value <= 1.0 for value in samples_y[sample_index]+reconstruction[sample_index]) else None
 
-                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples[sample_index], ylim=ylim, label='input', close=False)
+                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples_y[sample_index], ylim=ylim, label='input', close=False)
                 self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=reconstruction[sample_index], ylim=ylim, label='reconstruction', create_figure=False)
 
     def _out_path(self, relative_path: str, is_directory: bool = False) -> str:
