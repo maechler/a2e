@@ -76,4 +76,4 @@ def run_callable(run_config: dict):
     )
 
 
-experiment.grid_run(run_configs, run_callable)
+experiment.multi_run(run_configs, run_callable)

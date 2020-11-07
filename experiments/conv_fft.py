@@ -31,9 +31,9 @@ config = {
 }
 run_configs = {
  'data_set': config['data_sets'],
- 'fit_mode': config['fit_modes'],
- 'scaling': config['scalings'],
  'model_function': config['model_functions'],
+ 'scaling': config['scalings'],
+ 'fit_mode': config['fit_modes'],
 }
 
 experiment = Experiment()
@@ -84,4 +84,4 @@ def run_callable(run_config: dict):
     )
 
 
-experiment.grid_run(run_configs, run_callable)
+experiment.multi_run(run_configs, run_callable)

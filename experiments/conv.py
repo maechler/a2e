@@ -4,8 +4,8 @@ from a2e.processing.normalization import min_max_scale
 from a2e.utility import build_samples, load_from_module
 
 config = {
- 'input_size': 128,
- 'epochs': 1,
+ 'input_size': 64,
+ 'epochs': 50,
  'shuffle': True,
  'validation_split': 0.1,
  'model_functions': [
@@ -15,13 +15,16 @@ config = {
  ],
  'scalings': [
      'none',
-     'min_max',
+     #'min_max',
  ],
- 'data_sets': [
-     '400rpm',
-     '800rpm',
-     '1200rpm',
-     'variable_rpm',
+ 'data_set_modifier_combinations': [
+     {'data_set': '400rpm', 'modifier_min': 0},
+     {'data_set': '800rpm', 'modifier_min': 0},
+     {'data_set': '1200rpm', 'modifier_min': 0},
+     {'data_set': 'variable_rpm', 'modifier_min': -1},
+     {'data_set': 'variable_rpm', 'modifier_min': 0},
+     {'data_set': 'variable_rpm', 'modifier_min': 400},
+     {'data_set': 'variable_rpm', 'modifier_min': 800},
  ],
  'fit_modes': [
      'per_feature',
@@ -32,20 +35,13 @@ config = {
      'crest',
      'temperature',
  ],
- 'modifier_mins': [
-     -1,
-     0,
-     400,
-     800,
- ],
 }
 run_configs = {
- 'data_set': config['data_sets'],
  'data_column': config['data_columns'],
- 'fit_mode': config['fit_modes'],
- 'scaling': config['scalings'],
  'model_function': config['model_functions'],
- 'modifier_min': config['modifier_mins'],
+ 'data_set_modifier_combination': config['data_set_modifier_combinations'],
+ #'fit_mode': config['fit_modes'],
+ 'scaling': config['scalings'],
 }
 
 experiment = Experiment()
@@ -55,7 +51,7 @@ experiment.log('config/run_configs', run_configs)
 
 def run_callable(run_config: dict):
     def modifier(x):
-        return x[x.rpm > run_config['modifier_min']]
+        return x[x.rpm > run_config['data_set_modifier_combination']['modifier_min']]
 
     def pre_processing(data_frame):
         samples = build_samples(data_frame.to_numpy().flatten(), config['input_size'], target_dimensions=3)
@@ -71,8 +67,8 @@ def run_callable(run_config: dict):
     experiment.log_model(model)
 
     experiment.print('Loading data')
-    bearing_dataset = load_data(run_config['data_set'])
-    data_frames = bearing_dataset.as_dict(column=run_config['data_column'], modifier=modifier)
+    bearing_dataset = load_data(run_config['data_set_modifier_combination']['data_set'])
+    data_frames = bearing_dataset.as_dict(column=run_config['data_column'], modifier=modifier, split_test=True)
     train_samples = pre_processing(data_frames['train'])
 
     experiment.print('Fitting model')
@@ -95,4 +91,13 @@ def run_callable(run_config: dict):
     )
 
 
-experiment.grid_run(run_configs, run_callable)
+def run_id_callable(run_config: dict):
+    data_column = run_config['data_column']
+    model = run_config['model_function'].replace('a2e.models.create_conv_', '').replace('_autoencoder', '')
+    data_set = run_config['data_set_modifier_combination']['data_set']
+    modifier_min = run_config['data_set_modifier_combination']['modifier_min']
+
+    return f'{data_column}_{model}_{data_set}_{modifier_min}'
+
+
+experiment.multi_run(run_configs, run_callable, run_id_callable=run_id_callable, auto_run_id=False)

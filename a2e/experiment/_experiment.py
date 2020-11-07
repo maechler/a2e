@@ -5,8 +5,10 @@ import pathlib
 import datetime
 import shutil
 import traceback
+import re
 import numpy as np
-from typing import Callable, Dict, List
+from itertools import product
+from typing import Callable, Dict, List, Union
 from numpy.random import seed
 from pandas import DataFrame
 from tensorflow.python.framework.random_seed import set_seed
@@ -189,14 +191,22 @@ class Experiment:
 
         return callbacks
 
-    def grid_run(self, param_grid: dict, run_callable: Callable, auto_run_id: bool = True):
+    def multi_run(self, configurations: Union[dict, list], run_callable: Callable, run_id_callable: Callable = None, auto_run_id: bool = True):
         experiment = self
+        number_of_runs = 0
+        current_run = 0
 
         def run_callable_wrapper(params):
             if auto_run_id:
-                self.run_id = '_'.join(map(str, params.values()))
+                self.run_id = re.sub('[(){}<>\'"]', '', '_'.join(map(str, params.values())))
+            elif run_id_callable is not None:
+                self.run_id = run_id_callable(params)
+
+            nonlocal current_run
+            current_run = current_run + 1
 
             experiment.print(f'Starting run "{self.run_id}"')
+            experiment.print(f'Run {current_run} of {number_of_runs}')
             experiment.start_run()
             experiment.log('run_config', params)
 
@@ -207,7 +217,17 @@ class Experiment:
 
             experiment.end_run()
 
-        grid_run(param_grid, run_callable_wrapper)
+        if isinstance(configurations, dict):
+            number_of_runs = len(list(product(*configurations.values())))
+            experiment.print(f'Number of runs: "{number_of_runs}"')
+
+            grid_run(configurations, run_callable_wrapper)
+        else:
+            number_of_runs = len(configurations)
+            experiment.print(f'Number of runs: "{number_of_runs}"')
+
+            for configuration in configurations:
+                run_callable_wrapper(configuration)
 
     def start_run(self):
         self.run_count = self.run_count + 1
