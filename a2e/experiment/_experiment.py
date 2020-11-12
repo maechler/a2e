@@ -1,3 +1,4 @@
+import collections
 import inspect
 import json
 import os
@@ -7,6 +8,7 @@ import shutil
 import traceback
 import re
 import numpy as np
+import pandas as pd
 from itertools import product
 from typing import Callable, Dict, List, Union
 from numpy.random import seed
@@ -15,6 +17,7 @@ from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
+from a2e.automl import PredictScorer
 from a2e.experiment import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
 from a2e.processing.health import compute_health_score
@@ -76,6 +79,8 @@ class Experiment:
         with open(out_file_path, 'a') as out_file:
             if isinstance(value, dict) or isinstance(value, list):
                 out_file.write(json.dumps(value, indent=2) + '\n')
+            elif isinstance(value, pd.DataFrame):
+                value.to_csv(out_file_path, index=True, header=True)
             else:
                 out_file.write(str(value) + '\n')
 
@@ -99,17 +104,17 @@ class Experiment:
             if 'val_loss' in history.history:
                 self.log_plot('metrics/val_loss', y=history.history['val_loss'], xlabel='epoch', ylabel='validation loss')
 
-    def log_model(self, model: Model):
+    def log_model(self, model: Model, key: str = 'model'):
         self.print('Logging model')
 
         model_summary = []
         model.summary(print_fn=lambda x: model_summary.append(x))
 
-        plot_model(model, show_shapes=True, expand_nested=True, to_file=self._out_path('model/model.png'))
-        self.log('model/summary', '\n'.join(model_summary))
+        plot_model(model, show_shapes=True, expand_nested=True, to_file=self._out_path(f'{key}/model.png'))
+        self.log(f'{key}/summary', '\n'.join(model_summary))
 
         if len(model.get_weights()) > 0:
-            plot_model_layer_weights(model, out_path=self._out_path('model/layers', is_directory=True))
+            plot_model_layer_weights(model, out_path=self._out_path(f'{key}/layers', is_directory=True))
 
     def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
         self.print('Logging predictions')
@@ -219,12 +224,12 @@ class Experiment:
 
         if isinstance(configurations, dict):
             number_of_runs = len(list(product(*configurations.values())))
-            experiment.print(f'Number of runs: "{number_of_runs}"')
+            experiment.print(f'Number of runs: {number_of_runs}')
 
             grid_run(configurations, run_callable_wrapper)
         else:
             number_of_runs = len(configurations)
-            experiment.print(f'Number of runs: "{number_of_runs}"')
+            experiment.print(f'Number of runs: {number_of_runs}')
 
             for configuration in configurations:
                 run_callable_wrapper(configuration)
@@ -250,6 +255,83 @@ class Experiment:
         self.log('timing.log', f'end_run[{self.run_id}]={datetime.datetime.now()}')
         self.log('timing.log', f'run_duration[{self.run_id}]={datetime.datetime.now() - self.run_start}')
         self.run_id = None
+
+    def make_scorer(self, score_func, *, greater_is_better=True, **kwargs):
+        sign = 1 if greater_is_better else -1
+
+        if 'a2e' not in kwargs:
+            kwargs['a2e'] = collections.defaultdict(dict)
+
+        kwargs['a2e']['experiment'] = self
+
+        return ExperimentPredictScorer(score_func, sign, kwargs)
+
+
+class ExperimentPredictScorer(PredictScorer):
+    def __init__(self, score_func, sign, kwargs):
+        super().__init__(score_func, sign, kwargs)
+
+        self.a2e_history = None
+        self.a2e_model_id = 0
+
+    def a2e_init_history(self, scoring: dict):
+        columns = [
+            'model_id',
+            'best_model_id',
+            'score',
+        ]
+
+        if 'score_metrics' in scoring:
+            for key in scoring['score_metrics']:
+                columns.append(key)
+
+        for key in self._kwargs['a2e']['estimator'].sk_params:
+            columns.append(key)
+
+        self.a2e_history = pd.DataFrame({}, columns=columns)
+
+    def a2e_add_scoring_to_history(self, scoring: dict):
+        if self.a2e_history is None:
+            self.a2e_init_history(scoring)
+
+        self.a2e_model_id = self.a2e_model_id + 1
+
+        if self.a2e_history.empty:
+            best_model_row_id = 0
+            best_model_row_score = -1
+        else:
+            best_model_row = self.a2e_history.loc[self.a2e_history['score'].idxmax()]
+            best_model_row_id = best_model_row['model_id']
+            best_model_row_score = best_model_row['score']
+
+        score = scoring['score']
+
+        new_row = {
+            'model_id': self.a2e_model_id,
+            'best_model_id': self.a2e_model_id if score > best_model_row_score else best_model_row_id,
+            'score': score,
+        }
+
+        if 'score_metrics' in scoring:
+            for key, value in scoring['score_metrics'].items():
+                new_row[key] = value
+
+        for key, value in self._kwargs['a2e']['estimator'].sk_params.items():
+            new_row[key] = value
+
+        self.a2e_history = self.a2e_history.append(new_row, ignore_index=True)
+
+    def _score(self, method_caller, estimator, X, y_true, sample_weight=None):
+        score = super()._score(method_caller, estimator, X, y_true, sample_weight)
+
+        experiment = self._kwargs['a2e']['experiment']
+        scoring = self._kwargs['a2e']['scoring']
+
+        self.a2e_add_scoring_to_history(scoring)
+
+        experiment.log('automl_history.csv', self.a2e_history)
+
+        return score
 
 
 class ExperimentCallback(Callback):
