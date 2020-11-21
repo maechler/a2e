@@ -19,7 +19,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
 from a2e.automl import PredictScorer
-from a2e.experiment import git_hash, git_diff
+from a2e.experiment._git import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error, mad
