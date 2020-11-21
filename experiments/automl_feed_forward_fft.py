@@ -44,19 +44,9 @@ def run_callable(run_config: dict):
 
     model = KerasRegressor(build_fn=create_feed_forward_autoencoder, verbose=0)
     scorer = experiment.make_scorer(f1_loss_compression_score, greater_is_better=True)
-    grid = GridSearchCV(estimator=model, param_grid=param_grid, scoring=scorer, cv=[(slice(None), slice(None))], n_jobs=2)  # , fit_params={'callbacks': my_callbacks}
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, scoring=scorer, cv=[(slice(None), slice(None))], n_jobs=2)
 
-    grid_result = grid.fit(x_train, x_train, callbacks=experiment.callbacks(), validation_split=config['validation_split'])
-
-    pprint(grid_result.cv_results_)
-    print('')
-    print('')
-    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-    means = grid_result.cv_results_['mean_test_score']
-    stds = grid_result.cv_results_['std_test_score']
-    params = grid_result.cv_results_['params']
-    for mean, stdev, param in zip(means, stds, params):
-        print("%f (%f) with: %r" % (mean, stdev, param))
+    grid.fit(x_train, x_train, callbacks=experiment.callbacks(), validation_split=config['validation_split'])
 
 
 experiment.multi_run(run_configs, run_callable)
