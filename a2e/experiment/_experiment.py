@@ -18,7 +18,7 @@ from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
-from a2e.automl import PredictScorer
+from a2e.automl import make_scorer
 from a2e.experiment._git import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
 from a2e.processing.health import compute_health_score
@@ -258,74 +258,20 @@ class Experiment:
         self.log('timing.log', f'run_duration[{self.run_id}]={datetime.datetime.now() - self.run_start}')
         self.run_id = None
 
-    def make_scorer(self, score_func, *, greater_is_better=True, use_multiprocessing=True, **kwargs):
-        sign = 1 if greater_is_better else -1
+    def make_scorer(self, score_func, *, greater_is_better=True, use_synchronization=True, **kwargs):
+        experiment = self
 
-        if 'a2e' not in kwargs:
-            kwargs['a2e'] = collections.defaultdict(dict)
+        def scoring_callback(predict_scorer, score):
+            nonlocal experiment
+            experiment.log('scorer_history.csv', pd.DataFrame(list(predict_scorer.state['history'])), mode='w')
 
-        return ExperimentPredictScorer(score_func, sign, self, kwargs, use_multiprocessing=use_multiprocessing)
-
-
-class ExperimentPredictScorer(PredictScorer):
-
-    def __init__(self, score_func, sign, experiment: Experiment, kwargs, use_multiprocessing: bool = True):
-        super().__init__(score_func, sign, kwargs)
-
-        self.experiment = experiment
-
-        if use_multiprocessing:
-            process_manager = multiprocessing.Manager()
-            self._lock = process_manager.RLock()
-            self.state = process_manager.dict()
-            self.state['history'] = process_manager.list()
-        else:
-            self.state = {
-                'history': []
-            }
-
-        self.state['model_id'] = 0
-
-    @synchronized
-    def add_scoring_to_history(self, scoring: dict):
-        self.state['model_id'] = self.state['model_id'] + 1
-        score = scoring['score']
-
-        if len(self.state['history']) == 0:
-            best_model_row_id = 0
-            best_model_row_score = -1
-        else:
-            best_model_row_score = 0
-            best_model_row_id = 0
-
-            for history in self.state['history']:
-                if history['score'] > best_model_row_score:
-                    best_model_row_score = history['score']
-                    best_model_row_id = history['model_id']
-
-        history_row = {
-            'model_id': self.state['model_id'],
-            'best_model_id': self.state['model_id'] if score > best_model_row_score else best_model_row_id,
-            'score': score,
-        }
-
-        if 'score_metrics' in scoring:
-            for key, value in scoring['score_metrics'].items():
-                history_row[key] = value
-
-        for key, value in self._kwargs['a2e']['estimator'].sk_params.items():
-            history_row[key] = value
-
-        self.state['history'].append(history_row)
-
-    @synchronized
-    def _score(self, method_caller, estimator, X, y_true, sample_weight=None):
-        score = super()._score(method_caller, estimator, X, y_true, sample_weight)
-
-        self.add_scoring_to_history(self._kwargs['a2e']['scoring'])
-        self.experiment.log('automl_history.csv', pd.DataFrame(list(self.state['history'])), mode='w')
-
-        return score
+        return make_scorer(
+            score_func,
+            greater_is_better=greater_is_better,
+            use_synchronization=use_synchronization,
+            scoring_callbacks=[scoring_callback],
+            **kwargs,
+        )
 
 
 class ExperimentCallback(Callback):
