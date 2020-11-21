@@ -5,7 +5,7 @@ class PredictScorer(_PredictScorer):
     def _score(self, method_caller, estimator, X, y_true, sample_weight=None):
         # Store estimator and history in order to use it later in the scoring functions
         self._kwargs['a2e']['estimator'] = estimator
-        self._kwargs['a2e']['history'] = estimator.model.history
+        self._kwargs['a2e']['estimator_history'] = estimator.model.history
 
         return super()._score(method_caller, estimator, X, y_true, sample_weight)
 
@@ -18,7 +18,7 @@ def make_scorer(score_func, *, greater_is_better=True, **kwargs):
 
 def f1_loss_compression_score(y_true, y_pred, **kwargs):
     estimator = kwargs['a2e']['estimator']
-    history = kwargs['a2e']['history'].history
+    history = kwargs['a2e']['estimator_history'].history
     sk_params = estimator.sk_params
     model = estimator.model
 

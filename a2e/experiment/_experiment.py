@@ -8,6 +8,7 @@ import shutil
 import traceback
 import re
 import numpy as np
+import multiprocessing
 import pandas as pd
 from itertools import product
 from typing import Callable, Dict, List, Union
@@ -22,7 +23,7 @@ from a2e.experiment import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error, mad
-from a2e.utility import grid_run
+from a2e.utility import grid_run, synchronized
 
 
 class Experiment:
@@ -71,12 +72,12 @@ class Experiment:
         seed(1)
         set_seed(1)
 
-    def log(self, key: str, value: any):
+    def log(self, key: str, value: any, mode: str = 'a'):
         self.print(f'Logging "{key}"')
 
         out_file_path = self._out_path(key)
 
-        with open(out_file_path, 'a') as out_file:
+        with open(out_file_path, mode) as out_file:
             if isinstance(value, dict) or isinstance(value, list):
                 out_file.write(json.dumps(value, indent=2) + '\n')
             elif isinstance(value, pd.DataFrame):
@@ -173,9 +174,10 @@ class Experiment:
     def print(self, message: str):
         if self.verbose:
             message_prefix = f'[{self.experiment_id}]'
+            message_prefix = message_prefix + f'[pid={os.getpid()}]'
 
             if self.run_id is not None:
-                message_prefix = message_prefix + f'[{self.run_id}]'
+                message_prefix = message_prefix + f'[run_id={self.run_id}]'
 
             print(f'{message_prefix} {message}')
 
@@ -256,80 +258,72 @@ class Experiment:
         self.log('timing.log', f'run_duration[{self.run_id}]={datetime.datetime.now() - self.run_start}')
         self.run_id = None
 
-    def make_scorer(self, score_func, *, greater_is_better=True, **kwargs):
+    def make_scorer(self, score_func, *, greater_is_better=True, use_multiprocessing=True, **kwargs):
         sign = 1 if greater_is_better else -1
 
         if 'a2e' not in kwargs:
             kwargs['a2e'] = collections.defaultdict(dict)
 
-        kwargs['a2e']['experiment'] = self
-
-        return ExperimentPredictScorer(score_func, sign, kwargs)
+        return ExperimentPredictScorer(score_func, sign, self, kwargs, use_multiprocessing=use_multiprocessing)
 
 
 class ExperimentPredictScorer(PredictScorer):
-    def __init__(self, score_func, sign, kwargs):
+
+    def __init__(self, score_func, sign, experiment: Experiment, kwargs, use_multiprocessing: bool = True):
         super().__init__(score_func, sign, kwargs)
 
-        self.a2e_history = None
-        self.a2e_model_id = 0
+        self.experiment = experiment
 
-    def a2e_init_history(self, scoring: dict):
-        columns = [
-            'model_id',
-            'best_model_id',
-            'score',
-        ]
+        if use_multiprocessing:
+            process_manager = multiprocessing.Manager()
+            self._lock = process_manager.RLock()
+            self.state = process_manager.dict()
+            self.state['history'] = process_manager.list()
+        else:
+            self.state = {
+                'history': []
+            }
 
-        if 'score_metrics' in scoring:
-            for key in scoring['score_metrics']:
-                columns.append(key)
+        self.state['model_id'] = 0
 
-        for key in self._kwargs['a2e']['estimator'].sk_params:
-            columns.append(key)
+    @synchronized
+    def add_scoring_to_history(self, scoring: dict):
+        self.state['model_id'] = self.state['model_id'] + 1
+        score = scoring['score']
 
-        self.a2e_history = pd.DataFrame({}, columns=columns)
-
-    def a2e_add_scoring_to_history(self, scoring: dict):
-        if self.a2e_history is None:
-            self.a2e_init_history(scoring)
-
-        self.a2e_model_id = self.a2e_model_id + 1
-
-        if self.a2e_history.empty:
+        if len(self.state['history']) == 0:
             best_model_row_id = 0
             best_model_row_score = -1
         else:
-            best_model_row = self.a2e_history.loc[self.a2e_history['score'].idxmax()]
-            best_model_row_id = best_model_row['model_id']
-            best_model_row_score = best_model_row['score']
+            best_model_row_score = 0
+            best_model_row_id = 0
 
-        score = scoring['score']
+            for history in self.state['history']:
+                if history['score'] > best_model_row_score:
+                    best_model_row_score = history['score']
+                    best_model_row_id = history['model_id']
 
-        new_row = {
-            'model_id': self.a2e_model_id,
-            'best_model_id': self.a2e_model_id if score > best_model_row_score else best_model_row_id,
+        history_row = {
+            'model_id': self.state['model_id'],
+            'best_model_id': self.state['model_id'] if score > best_model_row_score else best_model_row_id,
             'score': score,
         }
 
         if 'score_metrics' in scoring:
             for key, value in scoring['score_metrics'].items():
-                new_row[key] = value
+                history_row[key] = value
 
         for key, value in self._kwargs['a2e']['estimator'].sk_params.items():
-            new_row[key] = value
+            history_row[key] = value
 
-        self.a2e_history = self.a2e_history.append(new_row, ignore_index=True)
+        self.state['history'].append(history_row)
 
+    @synchronized
     def _score(self, method_caller, estimator, X, y_true, sample_weight=None):
         score = super()._score(method_caller, estimator, X, y_true, sample_weight)
 
-        experiment = self._kwargs['a2e']['experiment']
-        scoring = self._kwargs['a2e']['scoring']
-
-        self.a2e_add_scoring_to_history(scoring)
-
-        experiment.log('automl_history.csv', self.a2e_history)
+        self.add_scoring_to_history(self._kwargs['a2e']['scoring'])
+        self.experiment.log('automl_history.csv', pd.DataFrame(list(self.state['history'])), mode='w')
 
         return score
 

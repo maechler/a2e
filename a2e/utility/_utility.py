@@ -40,3 +40,14 @@ def load_from_module(identifier: str) -> any:
     module_name, item_name = identifier.rsplit('.', 1)
 
     return getattr(importlib.import_module(module_name), item_name)
+
+
+def synchronized(method: Callable):
+    def synchronized_method(self, *args, **kwargs):
+        if hasattr(self, '_lock'):
+            with self._lock:
+                return method(self, *args, **kwargs)
+        else:
+            return method(self, *args, **kwargs)
+
+    return synchronized_method
