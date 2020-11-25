@@ -1,4 +1,4 @@
-# a2e - an auto autoencoder for IIoT
+# a2e - auto autoencoder
 
 ## Development
 
