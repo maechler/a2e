@@ -66,8 +66,7 @@ class EstimatorSearch:
         else:
             raise ValueError(f'Invalid optimizer "{optimizer}" provided.')
 
-        if n_jobs is not None and n_jobs > 10:
-            print('create manager')
+        if n_jobs is not None and n_jobs > 1:
             process_manager = multiprocessing.Manager()
             self._lock = process_manager.RLock()
             self.state = process_manager.dict()
