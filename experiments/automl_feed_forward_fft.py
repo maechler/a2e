@@ -1,6 +1,4 @@
-from tensorflow.python.keras.wrappers.scikit_learn import KerasRegressor
-from a2e.automl import f1_loss_compression_score
-from a2e.automl._search import EstimatorSearch
+from a2e.automl import EstimatorSearch, KerasEstimator, KerasPredictScorer, f1_loss_compression_score
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
 from a2e.models import create_feed_forward_autoencoder
@@ -42,17 +40,19 @@ def run_callable(run_config: dict):
     bearing_dataset = load_data(run_config['data_set'])
     x_train = bearing_dataset.train(column=config['data_column'], as_numpy=True)
 
-    model = KerasRegressor(build_fn=create_feed_forward_autoencoder, verbose=0)
-    scorer = experiment.make_scorer(f1_loss_compression_score)
+    estimator = KerasEstimator(build_fn=create_feed_forward_autoencoder)
+    scorer = KerasPredictScorer(f1_loss_compression_score)
     estimator_search = EstimatorSearch(
-        estimator=model,
+        estimator=estimator,
         parameter_grid=param_grid,
         scoring=scorer,
         n_jobs=2,
+        n_iterations=10,
         optimizer='bayes',
+        scoring_callbacks=experiment.scoring_callbacks(),
     )
 
-    estimator_search.fit(x_train, x_train)
+    estimator_search.fit(x_train)
 
 
 experiment.multi_run(run_configs, run_callable)

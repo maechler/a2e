@@ -1,4 +1,3 @@
-import collections
 import inspect
 import json
 import os
@@ -8,7 +7,6 @@ import shutil
 import traceback
 import re
 import numpy as np
-import multiprocessing
 import pandas as pd
 from itertools import product
 from typing import Callable, Dict, List, Union
@@ -18,7 +16,6 @@ from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
-from a2e.automl import make_scorer
 from a2e.experiment._git import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
 from a2e.processing.health import compute_health_score
@@ -258,20 +255,14 @@ class Experiment:
         self.log('timing.log', f'run_duration[{self.run_id}]={datetime.datetime.now() - self.run_start}')
         self.run_id = None
 
-    def make_scorer(self, score_func, *, greater_is_better=True, use_synchronization=True, **kwargs):
+    def scoring_callbacks(self):
         experiment = self
 
-        def scoring_callback(predict_scorer, score):
+        def scoring_callback(estimator_search, score_info):
             nonlocal experiment
-            experiment.log('scorer_history.csv', pd.DataFrame(list(predict_scorer.state['history'])), mode='w')
+            experiment.log('scorer_history.csv', pd.DataFrame(list(estimator_search.scoring_history())), mode='w')
 
-        return make_scorer(
-            score_func,
-            greater_is_better=greater_is_better,
-            use_synchronization=use_synchronization,
-            scoring_callbacks=[scoring_callback],
-            **kwargs,
-        )
+        return [scoring_callback]
 
 
 class ExperimentCallback(Callback):
