@@ -1,3 +1,5 @@
+import math
+
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import Dense
 
@@ -9,7 +11,7 @@ def create_feed_forward_autoencoder(
     loss='binary_crossentropy',
     activity_regularizer=None,
 ) -> Model:
-    """Creates a fully connected Keras autoencoder model
+    """Creates a feed forward Keras autoencoder model
 
     Parameters
     ----------
@@ -26,11 +28,6 @@ def create_feed_forward_autoencoder(
     model : a compiled Keras model
     """
 
-    #input_dimension = get_property_recursively(kwargs, 'input_dimension')
-    #encoding_dimension = get_property_recursively(kwargs, 'encoding_dimension')
-    #optimizer = get_property_recursively(kwargs, 'optimizer', default='adam')
-    #loss = get_property_recursively(kwargs, 'loss', default='binary_crossentropy')
-
     input_layer = Input(shape=(input_dimension,), name='input')
     layer = input_layer
     encoded = Dense(encoding_dimension, activation='relu', activity_regularizer=activity_regularizer, name='encoded')(layer)
@@ -38,6 +35,49 @@ def create_feed_forward_autoencoder(
     output_layer = Dense(input_dimension, activation='sigmoid', name='output')(layer)
 
     model = Model(input_layer, output_layer, name='a2e_feed_forward')
+
+    model.compile(optimizer=optimizer, loss=loss)
+
+    return model
+
+
+def create_deep_feed_forward_autoencoder(
+    input_dimension,
+    number_of_hidden_layers=1,
+    compression_per_layer=0.7,
+    hidden_layer_activations='relu',
+    output_layer_activation='sigmoid',
+    optimizer='adam',
+    loss='binary_crossentropy',
+    activity_regularizer=None,
+) -> Model:
+    if number_of_hidden_layers % 2 == 0:
+        raise ValueError(f'Number of hidden layers must be odd, "{number_of_hidden_layers}" provided.')
+
+    input_layer = Input(shape=(input_dimension,), name='input')
+    layer = input_layer
+
+    number_of_encoding_layers = int((number_of_hidden_layers - 1) / 2)
+    encoding_layer_dimensions = []
+
+    for i in range(number_of_encoding_layers):
+        encoding_layer_dimensions.append(int(math.pow(compression_per_layer, i+1) * input_dimension))
+
+    # encoding
+    for i, layer_dimension in enumerate(encoding_layer_dimensions):
+        layer = Dense(layer_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name=f'hidden_encoding_layer_{i}')(layer)
+
+    encoding_layer_size = int(math.pow(compression_per_layer, number_of_encoding_layers+1) * input_dimension)
+    encoded = Dense(encoding_layer_size, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)
+    layer = encoded
+
+    # decoding
+    for i, layer_dimension in enumerate(reversed(encoding_layer_dimensions)):
+        layer = Dense(layer_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name=f'hidden_decoding_layer_{i}')(layer)
+
+    output_layer = Dense(input_dimension, activation=output_layer_activation, name='output')(layer)
+
+    model = Model(input_layer, output_layer, name='a2e_deep_feed_forward')
 
     model.compile(optimizer=optimizer, loss=loss)
 
