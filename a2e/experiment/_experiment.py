@@ -202,7 +202,7 @@ class Experiment:
 
         def run_callable_wrapper(params):
             if auto_run_id:
-                self.run_id = re.sub('[(){}<>\'"]', '', '_'.join(map(str, params.values())))
+                self.run_id = re.sub('[(){}<>\',\s"]', '', '_'.join(map(str, params.values())))
             elif run_id_callable is not None:
                 self.run_id = run_id_callable(params)
 
@@ -260,7 +260,11 @@ class Experiment:
 
         def scoring_callback(estimator_search, score_info):
             nonlocal experiment
-            experiment.log('scorer_history.csv', pd.DataFrame(list(estimator_search.scoring_history())), mode='w')
+            search_history = estimator_search.search_history()
+
+            experiment.log('search/history.csv', search_history, mode='w')
+            experiment.log_plot('search/score', y=search_history['score'], xlabel='iteration', ylabel='score')
+            experiment.log_plot('search/best_model_id', y=search_history['best_model_id'], xlabel='iteration', ylabel='best model ID', ylim=[0, len(search_history['best_model_id'])])
 
         return [scoring_callback]
 
