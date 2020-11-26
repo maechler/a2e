@@ -1,4 +1,7 @@
+import pandas as pd
+from itertools import product
 from typing import List, Callable
+from pandas import DataFrame
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 from skopt import BayesSearchCV
 from evolutionary_search import EvolutionaryAlgorithmSearchCV
@@ -79,27 +82,45 @@ class EstimatorSearch:
 
         return self.optimizer.fit(x, y)
 
-    def scoring_history(self):
+    def search_history(self) -> DataFrame:
         if not isinstance(self.scoring, KerasPredictScorer):
             raise ValueError(f'Scoring history is only supported for a2e.automl.KerasPredictScorer.')
 
-        return self.state['history']
+        return pd.DataFrame(list(self.state['history']))
+
+    def search_space_size(self):
+        return len(list(product(*self.parameter_grid)))
 
     @synchronized
     def add_score_to_history(self, score_info: ScoreInfo, estimator_sk_params: dict = {}):
         self.state['model_id'] = self.state['model_id'] + 1
 
-        best_model_row_score = 0
-        best_model_row_id = 0
+        if self.scoring._sign > 1:
+            best_model_row_score = 0
+            best_model_row_id = 0
 
-        for history in self.state['history']:
-            if history['score'] > best_model_row_score:
-                best_model_row_score = history['score']
-                best_model_row_id = history['model_id']
+            for history in self.state['history']:
+                if history['score'] > best_model_row_score:
+                    best_model_row_score = history['score']
+                    best_model_row_id = history['model_id']
+
+            if score_info.score > best_model_row_score:
+                best_model_row_id = self.state['model_id']
+        else:
+            best_model_row_score = float('inf')
+            best_model_row_id = 0
+
+            for history in self.state['history']:
+                if history['score'] < best_model_row_score:
+                    best_model_row_score = history['score']
+                    best_model_row_id = history['model_id']
+
+            if score_info.score < best_model_row_score:
+                best_model_row_id = self.state['model_id']
 
         history_row = {
             'model_id': self.state['model_id'],
-            'best_model_id': self.state['model_id'] if score_info.score > best_model_row_score else best_model_row_id,
+            'best_model_id': best_model_row_id,
             'score': score_info.score,
         }
 
