@@ -6,6 +6,8 @@ from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 from skopt import BayesSearchCV
 from evolutionary_search import EvolutionaryAlgorithmSearchCV
 from tensorflow.python.distribute.multi_process_lib import multiprocessing
+from tensorflow.python.keras.wrappers.scikit_learn import BaseWrapper
+
 from a2e.automl import KerasPredictScorer, ScoreInfo
 from a2e.utility import synchronized
 
@@ -13,13 +15,14 @@ from a2e.utility import synchronized
 class EstimatorSearch:
     def __init__(self, estimator: any, parameter_grid: dict, scoring: any, optimizer: str = 'bayes', cv=None, n_jobs: int = None, n_iterations: int = 50, scoring_callbacks: List[Callable] = [], **kwargs):
         self.optimizer = None
-        self.estimator = estimator
+        self.estimator: BaseWrapper = estimator
         self.parameter_grid = parameter_grid
         self.scoring = scoring
         self.scoring_callbacks = scoring_callbacks
         self.state = {
             'model_id': 0,
-            'history': []
+            'history': [],
+            'sk_params': {},
         }
 
         if isinstance(scoring, KerasPredictScorer):
@@ -75,6 +78,7 @@ class EstimatorSearch:
             self.state = process_manager.dict()
             self.state['model_id'] = 0
             self.state['history'] = process_manager.list()
+            self.state['sk_params'] = process_manager.dict()
 
     def fit(self, x, y=None):
         if y is None:
@@ -82,14 +86,31 @@ class EstimatorSearch:
 
         return self.optimizer.fit(x, y)
 
-    def search_history(self) -> DataFrame:
+    def search_history(self, sort_by_score=False) -> DataFrame:
         if not isinstance(self.scoring, KerasPredictScorer):
             raise ValueError(f'Scoring history is only supported for a2e.automl.KerasPredictScorer.')
 
-        return pd.DataFrame(list(self.state['history']))
+        history_data_frame = pd.DataFrame(list(self.state['history']))
+
+        if sort_by_score:
+            ascending = self.scoring._sign < 1
+            history_data_frame = history_data_frame.sort_values(by=['score'], ascending=ascending)
+
+        return history_data_frame
 
     def search_space_size(self):
         return len(list(product(*self.parameter_grid)))
+
+    def params_by_model_id(self, model_id):
+        return self.state['sk_params'][model_id]
+
+    def fit_by_model_id(self, model_id, x, y):
+        sk_params = self.params_by_model_id(model_id)
+
+        self.estimator.set_params(**sk_params)
+        self.estimator.fit(x, y)
+
+        return self.estimator
 
     @synchronized
     def add_score_to_history(self, score_info: ScoreInfo, estimator_sk_params: dict = {}):
@@ -130,13 +151,8 @@ class EstimatorSearch:
         for key, value in estimator_sk_params.items():
             history_row[key] = value
 
+        self.state['sk_params'][self.state['model_id']] = estimator_sk_params
         self.state['history'].append(history_row)
 
         for scoring_callback in self.scoring_callbacks:
             scoring_callback(self, score_info)
-
-    #def refit(self, ):
-    #    best_estimator = clone(base_estimator).set_params(
-    #        **best_parameters)
-    #    if y is not None:
-    #        best_estimator.fit(X, y, **self.fit_params)
