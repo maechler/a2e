@@ -1,5 +1,7 @@
+import numpy as np
 from statistics import median
 from sklearn.metrics._scorer import _BaseScorer
+from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error
 
 
@@ -69,3 +71,19 @@ def loss_score(y_true, y_pred, estimator, estimator_history, **kwargs):
     history = estimator_history.history
 
     return ScoreInfo(min(history['loss']))
+
+
+def health_score(y_true, y_pred, estimator, estimator_history, **kwargs):
+    reconstruction_error = compute_reconstruction_error(y_true, y_pred)
+    health_score = compute_health_score(reconstruction_error, reconstruction_error, mode='median')
+    score = float(np.median(health_score))
+
+    return ScoreInfo(score)
+
+
+def min_health_score(y_true, y_pred, estimator, estimator_history, **kwargs):
+    reconstruction_error = compute_reconstruction_error(y_true, y_pred)
+    health_score = compute_health_score(reconstruction_error, reconstruction_error, mode='median')
+    score = float(np.min(health_score))
+
+    return ScoreInfo(score)

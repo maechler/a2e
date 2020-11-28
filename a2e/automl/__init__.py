@@ -8,6 +8,8 @@ from ._scoring import f1_loss_compression_score
 from ._scoring import val_loss_score
 from ._scoring import loss_score
 from ._scoring import reconstruction_error_score
+from ._scoring import health_score
+from ._scoring import min_health_score
 from ._search import EstimatorSearch
 from ._estimator import KerasEstimator
 
@@ -18,6 +20,8 @@ __all__ = [
     'val_loss_score',
     'loss_score',
     'reconstruction_error_score',
+    'health_score',
+    'min_health_score',
     'EstimatorSearch',
     'KerasEstimator',
 ]
