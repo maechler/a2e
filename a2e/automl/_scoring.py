@@ -81,9 +81,10 @@ def health_score(y_true, y_pred, estimator, estimator_history, **kwargs):
     return ScoreInfo(score)
 
 
-def min_health_score(y_true, y_pred, estimator, estimator_history, **kwargs):
+def min_health_score(y_true, y_pred, estimator, estimator_history, rolling_window_size=200, **kwargs):
     reconstruction_error = compute_reconstruction_error(y_true, y_pred)
     health_score = compute_health_score(reconstruction_error, reconstruction_error, mode='median')
-    score = float(np.min(health_score))
+    rolling_health_score = np.convolve(health_score, np.ones(rolling_window_size)/rolling_window_size, mode='valid')
+    score = float(np.min(rolling_health_score))
 
     return ScoreInfo(score)
