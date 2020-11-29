@@ -99,7 +99,12 @@ class EstimatorSearch:
         return history_data_frame
 
     def search_space_size(self):
-        return len(list(product(*self.parameter_grid)))
+        size = 1
+
+        for parameter_list in self.parameter_grid.values():
+            size = size * len(parameter_list)
+
+        return size
 
     def params_by_model_id(self, model_id):
         return self.state['sk_params'][model_id]
