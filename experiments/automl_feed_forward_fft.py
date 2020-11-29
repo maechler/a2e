@@ -1,14 +1,21 @@
+from tensorflow.python.keras.optimizer_v2.adam import Adam
+from tensorflow.python.keras.optimizer_v2.learning_rate_schedule import ExponentialDecay
 from a2e.automl import EstimatorSearch, KerasEstimator, KerasPredictScorer
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
 from a2e.models import create_deep_feed_forward_autoencoder
 from a2e.utility import load_from_module
 
+
+class MyAdam(Adam):
+    def __str__(self):
+        if isinstance(self._hyper["learning_rate"], ExponentialDecay):
+            return f'adam_exp_{self._hyper["learning_rate"].initial_learning_rate}'
+        else:
+            return f'adam_{self._hyper["learning_rate"].numpy()}'
+
+
 config = {
-    'input_size': 1025,
-    'encoding_size': 600,
-    'epochs': 15,
-    'shuffle': True,
     'validation_split': 0.1,
     'data_column': 'fft',
     'data_sets': [
@@ -33,19 +40,25 @@ run_configs = {
 param_grid = {
     'epochs': [15],
     'batch_size': [50, 100, 200, 300],
-    'input_dimension': [config['input_size']],
+    'input_dimension': [1025],
     'number_of_hidden_layers': list(range(1, 10, 2)),
     'compression_per_layer': list(map(lambda x: x/100.0, range(30, 100, 5))),
     'hidden_layer_activations': ['relu', 'linear', 'sigmoid', 'tanh'],
     'output_layer_activation': ['relu', 'linear', 'sigmoid', 'tanh'],
     #'loss': ['mse', 'binary_crossentropy'],
-    # 'optimizer': ['adam'],
+    'optimizer': [
+        MyAdam(learning_rate=0.01),
+        MyAdam(learning_rate=0.001),  # Adam default
+        MyAdam(learning_rate=0.0001),
+        MyAdam(learning_rate=ExponentialDecay(0.01, decay_steps=100000, decay_rate=0.96)),
+        MyAdam(learning_rate=ExponentialDecay(0.001, decay_steps=10000, decay_rate=0.96)),
+    ],
 }
 
 experiment = Experiment(auto_datetime_directory=True)
 experiment.log('config/config', config)
 experiment.log('config/run_configs', run_configs)
-experiment.log('config/param_grid', param_grid)
+#experiment.log('config/param_grid', param_grid)
 
 
 def run_callable(run_config: dict):
