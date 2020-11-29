@@ -74,11 +74,10 @@ def plot_conv_layer_weights(layer, out_path=None, show=False):
 
 def plot_model_layer_activations(model: Model, sample, out_path=None, show=False):
     for layer in model.layers:
-        if len(layer.get_weights()) > 0:
-            if isinstance(layer, Conv1D):
-                pass  # Not yet implemented
-            else:
-                plot_dense_layer_activations(model, layer, sample, out_path=out_path, show=show)
+        if isinstance(layer, Conv1D):
+            pass  # Not yet implemented
+        else:
+            plot_dense_layer_activations(model, layer, sample, out_path=out_path, show=show)
 
 
 def plot_dense_layer_activations(model, layer, sample, out_path=None, show=False):
