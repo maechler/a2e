@@ -18,12 +18,12 @@ def plot_model_layer_weights(model: Model, out_path=None, show=False):
     for layer in model.layers:
         if len(layer.get_weights()) > 0:
             if isinstance(layer, Conv1D):
-                plot_conv_layer(layer, out_path=out_path, show=show)
+                plot_conv_layer_weights(layer, out_path=out_path, show=show)
             else:
-                plot_dense_layer(layer, out_path=out_path, show=show)
+                plot_dense_layer_weights(layer, out_path=out_path, show=show)
 
 
-def plot_dense_layer(layer, out_path=None, show=False):
+def plot_dense_layer_weights(layer, out_path=None, show=False):
     name = layer.name
     weights = layer.get_weights()[0]
     figure = plt.figure()
@@ -41,7 +41,7 @@ def plot_dense_layer(layer, out_path=None, show=False):
         plt.show()
 
 
-def plot_conv_layer(layer, out_path=None, show=False):
+def plot_conv_layer_weights(layer, out_path=None, show=False):
     name = layer.name
     weights = layer.get_weights()[0]
     figure = plt.figure()
@@ -70,6 +70,23 @@ def plot_conv_layer(layer, out_path=None, show=False):
 
     if show:
         plt.show()
+
+
+def plot_model_layer_activations(model: Model, sample, out_path=None, show=False):
+    for layer in model.layers:
+        if len(layer.get_weights()) > 0:
+            if isinstance(layer, Conv1D):
+                pass  # Not yet implemented
+            else:
+                plot_dense_layer_activations(model, layer, sample, out_path=out_path, show=show)
+
+
+def plot_dense_layer_activations(model, layer, sample, out_path=None, show=False):
+    name = layer.name
+    activation_model = Model(inputs=model.input, outputs=layer.output)
+    activations = activation_model.predict(sample.reshape(1, -1))
+
+    plot(y=activations.reshape(-1), out_path=os.path.join(out_path, name), show=show)
 
 
 def plot(

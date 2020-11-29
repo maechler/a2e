@@ -18,6 +18,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
 from a2e.experiment._git import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights
+from a2e.plotter._plotter import plot_model_layer_activations
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error, mad
 from a2e.utility import grid_run, synchronized
@@ -158,6 +159,8 @@ class Experiment:
 
                 self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples_y[sample_index], ylim=ylim, label='input', close=False)
                 self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=reconstruction[sample_index], ylim=ylim, label='reconstruction', create_figure=False)
+
+                plot_model_layer_activations(model=model, sample=samples_x[sample_index], out_path=self._out_path(f'{key}/activations/sample_{sample_index}', is_directory=True))
 
     def _out_path(self, relative_path: str, is_directory: bool = False) -> str:
         out_file_path = pathlib.Path(os.path.join(self.out_directory, relative_path))
