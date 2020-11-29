@@ -93,7 +93,7 @@ class EstimatorSearch:
         history_data_frame = pd.DataFrame(list(self.state['history']))
 
         if sort_by_score:
-            ascending = self.scoring._sign < 1
+            ascending = self.scoring._sign < 0
             history_data_frame = history_data_frame.sort_values(by=['score'], ascending=ascending)
 
         return history_data_frame
@@ -116,7 +116,7 @@ class EstimatorSearch:
     def add_score_to_history(self, score_info: ScoreInfo, estimator_sk_params: dict = {}):
         self.state['model_id'] = self.state['model_id'] + 1
 
-        if self.scoring._sign > 1:
+        if self.scoring._sign > 0:
             best_model_row_score = 0
             best_model_row_id = 0
 
