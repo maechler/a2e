@@ -18,6 +18,11 @@ class MyAdam(Adam):
 config = {
     'validation_split': 0.1,
     'data_column': 'fft',
+    'optimization_methods': [
+        'bayes',
+        'grid',
+        'random',
+    ],
     'data_sets': [
          '400rpm',
          '800rpm',
@@ -25,17 +30,18 @@ config = {
          #'variable_rpm'
     ],
     'score_functions': [
-        ('a2e.automl.health_score', True),
         ('a2e.automl.min_health_score', True),
         ('a2e.automl.val_loss_score', False),
         ('a2e.automl.loss_score', False),
         ('a2e.automl.reconstruction_error_score', False),
         ('a2e.automl.f1_loss_compression_score', True),
+        ('a2e.automl.health_score', True),
     ]
 }
 run_configs = {
     'data_set': config['data_sets'],
     'score_function': config['score_functions'],
+    'optimization_method': config['optimization_methods'],
 }
 param_grid = {
     'epochs': [15],
@@ -45,7 +51,7 @@ param_grid = {
     'compression_per_layer': list(map(lambda x: x/100.0, range(30, 100, 5))),
     'hidden_layer_activations': ['relu', 'linear', 'sigmoid', 'tanh'],
     'output_layer_activation': ['relu', 'linear', 'sigmoid', 'tanh'],
-    #'loss': ['mse', 'binary_crossentropy'],
+    'loss': ['mse', 'binary_crossentropy'],
     'optimizer': [
         MyAdam(learning_rate=0.01),
         MyAdam(learning_rate=0.001),  # Adam default
@@ -74,7 +80,7 @@ def run_callable(run_config: dict):
         scoring=scorer,
         n_jobs=1,
         n_iterations=100,
-        optimizer='bayes',
+        optimizer=run_config['optimization_method'],
         scoring_callbacks=experiment.scoring_callbacks(),
     )
 
