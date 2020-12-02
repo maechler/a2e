@@ -13,10 +13,10 @@ def health_score_sigmoid_activation(x: float, shrink: float = 0.75, shift: float
 
 
 def compute_health_score(train_error: list, test_error: list, mode: str = 'median', health_score_activation: Callable = health_score_sigmoid_activation) -> list:
-    if mode is 'median':
+    if mode == 'median':
         train_center = np.median(train_error)
         train_deviation = mad(train_error)
-    elif mode is 'average':
+    elif mode == 'average':
         train_center = np.average(train_error)
         train_deviation = np.std(train_error)
     else:
