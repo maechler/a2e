@@ -16,8 +16,8 @@ class BearingDataSet:
         self.data_frame = data_frame
         self.masks = masks
 
-    def all(self, column, as_numpy=False, modifier: Callable = None) -> DataFrame:
-        return self.masked_data(column, as_numpy=as_numpy, modifier=modifier)
+    def all(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True) -> DataFrame:
+        return self.masked_data(column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates)
 
     def train(self, column, as_numpy=False, modifier: Callable = None) -> DataFrame:
         return self.masked_data(column, mask='train', as_numpy=as_numpy, modifier=modifier)
@@ -46,21 +46,40 @@ class BearingDataSet:
 
         return datasets_dict
 
-    def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None) -> DataFrame:
+    def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True) -> DataFrame:
         if mask is not None:
             masked_data_frame = self.data_frame.loc[self.masks[mask]]
         else:
             masked_data_frame = self.data_frame
-
-        if modifier is not None:
-            masked_data_frame = modifier(masked_data_frame)
 
         if column == 'fft':
             masked_data_frame = masked_data_frame.iloc[:, 4:]
         else:
             masked_data_frame = masked_data_frame[[column]]
 
+        if drop_duplicates:
+            if column == 'fft':
+                self.drop_adjacent_duplicates(masked_data_frame, ['fft_1', 'fft_2', 'fft_3'])
+            else:
+                self.drop_adjacent_duplicates(masked_data_frame, [column])
+
+        if modifier is not None:
+            masked_data_frame = modifier(masked_data_frame)
+
         return masked_data_frame.to_numpy() if as_numpy else masked_data_frame
+
+    def drop_adjacent_duplicates(self, data_frame: DataFrame, columns: list):
+        previous_row = None
+        indexes_to_drop = []
+
+        for index, row in data_frame.iterrows():
+            if previous_row is not None:
+                if previous_row[columns].equals(row[columns]):
+                    indexes_to_drop.append(index)
+
+            previous_row = row
+
+        data_frame.drop(index=indexes_to_drop, inplace=True)
 
 
 def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', cache_dir: str = None) -> BearingDataSet:
