@@ -43,7 +43,7 @@ def run_callable(run_config: dict):
         train_samples,
         verbose=0,
         epochs=config['epochs'],
-        callbacks=experiment.callbacks(),
+        callbacks=experiment.keras_callbacks(),
         validation_split=config['validation_split'],
         shuffle=config['shuffle'],
     )

@@ -17,11 +17,10 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
 from a2e.experiment._git import git_hash, git_diff
-from a2e.plotter import plot, plot_model_layer_weights
-from a2e.plotter._plotter import plot_model_layer_activations
+from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activations
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error, mad
-from a2e.utility import grid_run, synchronized
+from a2e.utility import grid_run
 
 
 class Experiment:
@@ -83,41 +82,45 @@ class Experiment:
             else:
                 out_file.write(str(value) + '\n')
 
-    def log_plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
+    def plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
         self.print(f'Logging plot "{key}"')
 
-        self.log(key, y)
         plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, ylim=ylim, label=label, time_formatting=time_formatting, create_figure=create_figure, close=close, out_path=self._out_path(key))
 
-    def log_history(self, history: History):
+    def log_history(self, history: History, key: str = None):
         self.print('Logging history')
+        log_base_path = 'training/history' if key is None else f'training/history/{key}'
 
         if 'loss' in history.history and 'val_loss' in history.history:
-            self.log('metrics/val_loss', history.history['val_loss'])
-            self.log_plot('metrics/loss', y=history.history['val_loss'], label='validation loss', xlabel='epoch', close=False)
-            self.log_plot('metrics/loss', y=history.history['loss'], label='loss', xlabel='epoch', create_figure=False)
+            self.plot(f'{log_base_path}/loss', y=history.history['val_loss'], label='validation loss', xlabel='epoch', close=False)
+            self.plot(f'{log_base_path}/loss', y=history.history['loss'], label='loss', xlabel='epoch', create_figure=False)
         else:
             if 'loss' in history.history:
-                self.log_plot('metrics/loss', y=history.history['loss'], xlabel='epoch', ylabel='loss')
+                self.plot(f'{log_base_path}/loss', y=history.history['loss'], xlabel='epoch', ylabel='loss')
 
             if 'val_loss' in history.history:
-                self.log_plot('metrics/val_loss', y=history.history['val_loss'], xlabel='epoch', ylabel='validation loss')
+                self.plot(f'{log_base_path}/val_loss', y=history.history['val_loss'], xlabel='epoch', ylabel='validation loss')
 
-    def log_model(self, model: Model, key: str = 'model'):
+        self.log(f'{log_base_path}/history.csv', pd.DataFrame.from_dict(history.history))
+
+    def log_model(self, model: Model, key: str = None):
         self.print('Logging model')
 
+        log_base_path = 'model' if key is None else f'model/{key}'
         model_summary = []
         model.summary(print_fn=lambda x: model_summary.append(x))
 
-        plot_model(model, show_shapes=True, expand_nested=True, to_file=self._out_path(f'{key}/model.png'))
-        self.log(f'{key}/summary', '\n'.join(model_summary))
+        plot_model(model, show_shapes=True, expand_nested=True, to_file=self._out_path(f'{log_base_path}/model.png'))
+        self.log(f'{log_base_path}/summary', '\n'.join(model_summary))
 
         if len(model.get_weights()) > 0:
-            plot_model_layer_weights(model, out_path=self._out_path(f'{key}/layers', is_directory=True))
+            plot_model_layer_weights(model, out_path=self._out_path(f'{log_base_path}/weights', is_directory=True))
+            model.save(self._out_path(f'{log_base_path}/model.h5'))
 
-    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
+    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], key: str = None, pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
         self.print('Logging predictions')
 
+        log_base_path = 'predictions' if key is None else f'predictions/{key}'
         pre_processing_x = pre_processing_x if pre_processing_x is not None else pre_processing
         pre_processing_y = pre_processing_y if pre_processing_y is not None else pre_processing
         train_reconstruction_error = None
@@ -128,7 +131,9 @@ class Experiment:
             train_samples_y = pre_processing_y(train_data_frame) if pre_processing_y is not None else train_data_frame.to_numpy()
             train_reconstruction_error = compute_reconstruction_error(train_samples_y, model.predict(train_samples_x), has_multiple_features=has_multiple_features)
 
-        for key, data_frame in data_frames.items():
+        for data_frame_key, data_frame in data_frames.items():
+            data_frame = data_frame.copy()
+            data_frame_log_path = f'{log_base_path}/{data_frame_key}'
             samples_x = pre_processing_x(data_frame) if pre_processing_x is not None else data_frame.to_numpy()
             samples_y = pre_processing_y(data_frame) if pre_processing_y is not None else data_frame.to_numpy()
 
@@ -142,25 +147,33 @@ class Experiment:
             data_frame['reconstruction_error'] = reconstruction_error
             data_frame['reconstruction_error_rolling'] = data_frame['reconstruction_error'].rolling(window=rolling_window_size).median()
 
-            self.log(f'metrics/{key}/median', np.median(reconstruction_error))
-            self.log(f'metrics/{key}/mad', mad(reconstruction_error))
+            self.log(f'{data_frame_log_path}/median', np.median(reconstruction_error))
+            self.log(f'{data_frame_log_path}/mad', mad(reconstruction_error))
 
-            self.log_plot(f'metrics/{key}/reconstruction_error', x=data_frame.index, y=reconstruction_error, label='reconstruction error', time_formatting=True, close=False)
-            self.log_plot(f'metrics/{key}/reconstruction_error_rolling', x=data_frame.index, y=data_frame['reconstruction_error_rolling'], label='rolling reconstruction error', time_formatting=True, create_figure=False)
+            self.plot(f'{data_frame_log_path}/reconstruction_error', x=data_frame.index, y=reconstruction_error, label='reconstruction error', time_formatting=True, close=False)
+            self.plot(f'{data_frame_log_path}/reconstruction_error_rolling', x=data_frame.index, y=data_frame['reconstruction_error_rolling'], label='rolling reconstruction error', time_formatting=True, create_figure=False)
 
             if train_reconstruction_error is not None:
                 data_frame['health_score'] = compute_health_score(train_reconstruction_error, reconstruction_error)
+                data_frame['health_score_rolling'] = data_frame['health_score'].rolling(window=rolling_window_size).median()
 
-                self.log_plot(f'metrics/{key}/health_score', x=data_frame.index, y=data_frame['health_score'], label='health score', ylim=[0, 1], time_formatting=True, close=False)
-                self.log_plot(f'metrics/{key}/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median(), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
+                self.plot(f'{data_frame_log_path}/health_score', x=data_frame.index, y=data_frame['health_score'], label='health score', ylim=[0, 1], time_formatting=True, close=False)
+                self.plot(f'{data_frame_log_path}/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median(), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
+
+                self.log(f'{data_frame_log_path}/metrics.csv', data_frame[['reconstruction_error', 'reconstruction_error_rolling', 'health_score', 'health_score_rolling']])
+            else:
+                self.log(f'{data_frame_log_path}/metrics.csv', data_frame[['reconstruction_error', 'reconstruction_error_rolling']])
 
             for sample_index in log_samples:
                 ylim = [0, 1] if all(0.0 <= value <= 1.0 for value in samples_y[sample_index]+reconstruction[sample_index]) else None
+                sample_log_path = f'{data_frame_log_path}/samples/sample_{sample_index}'
 
-                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=samples_y[sample_index], ylim=ylim, label='input', close=False)
-                self.log_plot(f'metrics/{key}/samples/sample_{sample_index}', y=reconstruction[sample_index], ylim=ylim, label='reconstruction', create_figure=False)
+                self.plot(f'{sample_log_path}/input', y=samples_y[sample_index], ylim=ylim, label='input', close=False)
+                self.plot(f'{sample_log_path}/reconstruction', y=reconstruction[sample_index], ylim=ylim, label='reconstruction', create_figure=False)
 
-                plot_model_layer_activations(model=model, sample=samples_x[sample_index], out_path=self._out_path(f'{key}/activations/sample_{sample_index}', is_directory=True))
+                self.log(f'{sample_log_path}/data.csv', pd.DataFrame.from_dict({'input': samples_y[sample_index], 'reconstruction': reconstruction[sample_index]}))
+
+                plot_model_layer_activations(model=model, sample=samples_x[sample_index], out_path=self._out_path(f'{sample_log_path}/activations/', is_directory=True))
 
     def _out_path(self, relative_path: str, is_directory: bool = False) -> str:
         out_file_path = pathlib.Path(os.path.join(self.out_directory, relative_path))
@@ -181,16 +194,16 @@ class Experiment:
 
             print(f'{message_prefix} {message}')
 
-    def callbacks(self, save_best: bool = True):
+    def keras_callbacks(self, save_best: bool = True):
         callbacks = [
-            ModelCheckpoint(self._out_path('model/model.hdf5')),
-            CSVLogger(self._out_path('metrics/loss_log.csv'), separator=',', append=False),
+            ModelCheckpoint(self._out_path('training/callbacks/model.current.h5')),
+            CSVLogger(self._out_path('training/callbacks/loss_log.csv'), separator=',', append=False),
             ExperimentCallback(self),
         ]
 
         if save_best:
             callbacks.append(ModelCheckpoint(
-                self._out_path('model/model.best.hdf5'),
+                self._out_path('training/callbacks/model.best.h5'),
                 save_best_only=True,
                 monitor='val_loss',
                 mode='min')
@@ -266,8 +279,8 @@ class Experiment:
             search_history = estimator_search.search_history()
 
             experiment.log('search/history.csv', search_history, mode='w')
-            experiment.log_plot('search/score', y=search_history['score'], xlabel='iteration', ylabel='score')
-            experiment.log_plot('search/best_model_id', y=search_history['best_model_id'], xlabel='iteration', ylabel='best model ID', ylim=[0, len(search_history['best_model_id'])])
+            experiment.plot('search/score', y=search_history['score'], xlabel='iteration', ylabel='score')
+            experiment.plot('search/best_model_id', y=search_history['best_model_id'], xlabel='iteration', ylabel='best model ID', ylim=[0, len(search_history['best_model_id'])])
 
         return [scoring_callback]
 

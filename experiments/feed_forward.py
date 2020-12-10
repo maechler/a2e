@@ -9,7 +9,7 @@ from a2e.utility import build_samples
 config = {
  'input_size': 32,
  'encoding_size': 16,
- 'epochs': 50,
+ 'epochs': 5,
  'shuffle': True,
  'validation_split': 0.1,
  'fit_modes': ['per_feature', 'per_sample', 'train'],
@@ -51,7 +51,7 @@ def run_callable(run_config: dict):
         train_samples,
         verbose=0,
         epochs=config['epochs'],
-        callbacks=experiment.callbacks(),
+        callbacks=experiment.keras_callbacks(),
         validation_split=config['validation_split'],
         shuffle=config['shuffle'],
     )
