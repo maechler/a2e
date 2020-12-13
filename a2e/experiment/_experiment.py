@@ -186,7 +186,8 @@ class Experiment:
 
     def print(self, message: str):
         if self.verbose:
-            message_prefix = f'[{self.experiment_id}]'
+            datetime_string = datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+            message_prefix = f'[{datetime_string}][{self.experiment_id}]'
             message_prefix = message_prefix + f'[pid={os.getpid()}]'
 
             if self.run_id is not None:
