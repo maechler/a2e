@@ -1,6 +1,8 @@
 import numpy as np
 from statistics import median
 from sklearn.metrics._scorer import _BaseScorer
+
+from a2e.models._feed_forward import compute_model_compression
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error
 
@@ -38,11 +40,8 @@ def f1_loss_compression_score(y_true, y_pred, estimator, estimator_history,  **k
 
     val_loss_start = history['val_loss'][0]
     val_loss = min(history['val_loss'][-1], 1)
-    input_dimension = model.input_shape[1]
-    encoding_layer_index = int((len(model.layers) - 1) / 2 + 1)
-    encoding_dimension = model.layers[encoding_layer_index].input_shape[1]
 
-    compression = 1 - (encoding_dimension / input_dimension)
+    compression = compute_model_compression(model)
     loss_improvement = 1 - (val_loss / val_loss_start)
 
     f1_score = 2 * (compression * loss_improvement) / (compression + loss_improvement)
@@ -65,6 +64,17 @@ def val_loss_score(y_true, y_pred, estimator, estimator_history, **kwargs):
 
 def reconstruction_error_score(y_true, y_pred, estimator, estimator_history, **kwargs):
     return ScoreInfo(median(compute_reconstruction_error(y_true, y_pred)))
+
+
+def reconstruction_error_compression_score(y_true, y_pred, estimator, estimator_history, **kwargs):
+    reconstruction_error = median(compute_reconstruction_error(y_true, y_pred))
+    compression = compute_model_compression(estimator.model)
+    score = reconstruction_error / compression
+
+    return ScoreInfo(score, {
+        'reconstruction_error': reconstruction_error,
+        'compression': compression,
+    })
 
 
 def loss_score(y_true, y_pred, estimator, estimator_history, **kwargs):

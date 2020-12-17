@@ -82,3 +82,12 @@ def create_deep_feed_forward_autoencoder(
     model.compile(optimizer=optimizer, loss=loss)
 
     return model
+
+
+def compute_model_compression(model: Model) -> float:
+    input_dimension = model.input_shape[1]
+    encoding_layer_index = int((len(model.layers) - 1) / 2 + 1)
+    encoding_dimension = model.layers[encoding_layer_index].input_shape[1]
+    compression = 1 - (encoding_dimension / input_dimension)
+
+    return compression

@@ -8,6 +8,7 @@ from ._scoring import f1_loss_compression_score
 from ._scoring import val_loss_score
 from ._scoring import loss_score
 from ._scoring import reconstruction_error_score
+from ._scoring import reconstruction_error_compression_score
 from ._scoring import health_score
 from ._scoring import min_health_score
 from ._search import EstimatorSearch
@@ -20,6 +21,7 @@ __all__ = [
     'val_loss_score',
     'loss_score',
     'reconstruction_error_score',
+    'reconstruction_error_compression_score',
     'health_score',
     'min_health_score',
     'EstimatorSearch',
