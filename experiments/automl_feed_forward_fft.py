@@ -25,17 +25,19 @@ config = {
     ],
     'data_sets': [
          '400rpm',
-         #'800rpm',
-         #'1200rpm',
-         #'variable_rpm'
+         '800rpm',
+         '800rpm_gradual',
+         '1200rpm',
+         'variable_rpm'
     ],
     'score_functions': [
-        #('a2e.automl.min_health_score', True),
-        #('a2e.automl.val_loss_score', False),
-        #('a2e.automl.loss_score', False),
         ('a2e.automl.reconstruction_error_score', False),
-        #('a2e.automl.f1_loss_compression_score', True),
-        #('a2e.automl.health_score', True),
+        ('a2e.automl.reconstruction_error_compression_score', False),
+        ('a2e.automl.health_score', True),
+        ('a2e.automl.min_health_score', True),
+        ('a2e.automl.val_loss_score', False),
+        ('a2e.automl.loss_score', False),
+        ('a2e.automl.f1_loss_compression_score', True),
     ]
 }
 run_configs = {
@@ -44,7 +46,7 @@ run_configs = {
     'optimization_method': config['optimization_methods'],
 }
 param_grid = {
-    'epochs': [15],
+    'epochs': [20],
     'batch_size': [50, 100, 200, 300],
     'input_dimension': [1025],
     'number_of_hidden_layers': list(range(1, 10, 2)),
@@ -79,7 +81,7 @@ def run_callable(run_config: dict):
         parameter_grid=param_grid,
         scoring=scorer,
         n_jobs=1,
-        n_iterations=2,
+        n_iterations=100,
         optimizer=run_config['optimization_method'],
         scoring_callbacks=experiment.scoring_callbacks(),
     )
