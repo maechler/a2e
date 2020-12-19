@@ -153,5 +153,5 @@ def plot(
     if show:
         plt.show()
 
-    if close:
+    if close and not show:
         plt.close()
