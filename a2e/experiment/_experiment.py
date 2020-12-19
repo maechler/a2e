@@ -82,10 +82,10 @@ class Experiment:
             else:
                 out_file.write(str(value) + '\n')
 
-    def plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
+    def plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, vlines = [], title = None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
         self.print(f'Logging plot "{key}"')
 
-        plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, ylim=ylim, label=label, time_formatting=time_formatting, create_figure=create_figure, close=close, out_path=self._out_path(key))
+        plot(x=x, y=y, xlabel=xlabel, ylabel=ylabel, ylim=ylim, label=label, vlines=vlines, title=title, time_formatting=time_formatting, create_figure=create_figure, close=close, out_path=self._out_path(key))
 
     def log_history(self, history: History, key: str = None):
         self.print('Logging history')
