@@ -4,7 +4,7 @@ import yaml
 import pathlib
 import pandas as pd
 from pathlib import Path
-from typing import Callable, Union, Tuple
+from typing import Callable, Union, List
 from tensorflow.keras.utils import get_file
 from pandas import DataFrame
 from a2e.utility import timestamp_to_date_time
@@ -12,61 +12,71 @@ from a2e.utility import timestamp_to_date_time
 
 class BearingDataSet:
 
-    def __init__(self, data_frame: DataFrame, masks: dict):
+    def __init__(self, data_frame: DataFrame, windows: dict):
         self.data_frame = data_frame
-        self.masks = masks
+        self.windows = windows
 
-    def all(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True) -> DataFrame:
-        return self.masked_data(column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates)
+    def all(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> DataFrame:
+        return self.windowed_data(column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
-    def train(self, column, as_numpy=False, modifier: Callable = None) -> DataFrame:
-        return self.masked_data(column, mask='train', as_numpy=as_numpy, modifier=modifier)
+    def train(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> DataFrame:
+        return self.windowed_data(column, window='train', as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
-    def test(self, column, split=False, as_numpy=False, modifier: Callable = None) -> Union[DataFrame, Tuple[DataFrame, DataFrame]]:
+    def test(self, column, split=False, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, List[DataFrame]]:
+        windowed_data_frames = []
+
+        for window_key, window_description in self.windows.items():
+            if not window_key.startswith('test_'):
+                continue
+
+            windowed_data_frames.append(self.windowed_data(column, window=window_key, as_numpy=False, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label))
+
         if split:
-            test_healthy = self.masked_data(column, mask='test_healthy', as_numpy=as_numpy, modifier=modifier)
-            test_anomalous = self.masked_data(column, mask='test_anomalous', as_numpy=as_numpy, modifier=modifier)
-
-            return test_healthy, test_anomalous
+            return list(map(lambda x: x.to_numpy(), windowed_data_frames)) if as_numpy else windowed_data_frames
         else:
-            return self.masked_data(column, mask='test', as_numpy=as_numpy, modifier=modifier)
+            windowed_data_frame = pd.concat(windowed_data_frames)
 
-    def as_dict(self, column, as_numpy=False, modifier: Callable = None, split_test=False):
+            return windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
+
+    def as_dict(self, column, as_numpy=False, modifier: Callable = None, split_test=False, drop_duplicates: bool = True, add_label: bool = False):
         datasets_dict = {
-            'train': self.train(column=column, as_numpy=as_numpy, modifier=modifier),
-            'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier)
+            'train': self.train(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label),
+            'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
         }
 
         if split_test:
-            test_healthy, test_anomalous = self.test(column=column, as_numpy=as_numpy, modifier=modifier, split=True)
-            datasets_dict['test_healthy'] = test_healthy
-            datasets_dict['test_anomalous'] = test_anomalous
+            for window_key, window_description in self.windows.items():
+                if window_key.startswith('test_'):
+                    datasets_dict[window_key] = self.windowed_data(column=column, window=window_key, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
         else:
-            datasets_dict['test'] = self.test(column=column, as_numpy=as_numpy, modifier=modifier)
+            datasets_dict['test'] = self.test(column=column, split=False, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
         return datasets_dict
 
-    def masked_data(self, column, mask: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True) -> DataFrame:
-        if mask is not None:
-            masked_data_frame = self.data_frame.loc[self.masks[mask]]
+    def windowed_data(self, column, window: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> DataFrame:
+        if window is not None:
+            windowed_data_frame = self.data_frame.loc[self.windows[window]['mask']]
         else:
-            masked_data_frame = self.data_frame
+            windowed_data_frame = self.data_frame
 
         if column == 'fft':
-            masked_data_frame = masked_data_frame.iloc[:, 4:]
+            windowed_data_frame = windowed_data_frame.iloc[:, 4:]
         else:
-            masked_data_frame = masked_data_frame[[column]]
+            windowed_data_frame = windowed_data_frame[[column]]
 
         if drop_duplicates:
             if column == 'fft':
-                self.drop_adjacent_duplicates(masked_data_frame, ['fft_1', 'fft_2', 'fft_3'])
+                self.drop_adjacent_duplicates(windowed_data_frame, ['fft_1', 'fft_2', 'fft_3'])
             else:
-                self.drop_adjacent_duplicates(masked_data_frame, [column])
+                self.drop_adjacent_duplicates(windowed_data_frame, [column])
+
+        if add_label:
+            windowed_data_frame['label'] = self.windows[window]['label']
 
         if modifier is not None:
-            masked_data_frame = modifier(masked_data_frame)
+            windowed_data_frame = modifier(windowed_data_frame)
 
-        return masked_data_frame.to_numpy() if as_numpy else masked_data_frame
+        return windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
 
     def drop_adjacent_duplicates(self, data_frame: DataFrame, columns: list):
         previous_row = None
@@ -98,8 +108,8 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
 
     Returns
     -------
-    data_frame, masks: DataFrame, dict
-        A data_frame indexed by timestamp and a dictionary containing data set masks for `train`, `test`, `test_healthy` and `test_anomalous`
+    data_frame, windows: DataFrame, dict
+        A data_frame indexed by timestamp and a dictionary containing data set windows for `train`, `test`, `test_healthy` and `test_anomalous`
     """
     if a2e_data_path is None:
         a2e_data_path = 'https://github.com/maechler/a2e-data/raw/master/data/'
@@ -130,11 +140,12 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
 
     data_frame = pd.read_csv(gzip.open(data_set_path, mode='rt'), parse_dates=[data_set_description['data']['index_column']], date_parser=lambda x: timestamp_to_date_time(float(x)), quotechar='"', sep=',')
     data_frame = data_frame.set_index(data_set_description['data']['index_column'])
-    masks = {
-        'train': (data_frame.index > data_set_description['windows']['train']['start']) & (data_frame.index <= data_set_description['windows']['train']['end']),
-        'test': (data_frame.index > data_set_description['windows']['test_healthy']['start']) & (data_frame.index <= data_set_description['windows']['test_anomalous']['end']),
-        'test_healthy': (data_frame.index > data_set_description['windows']['test_healthy']['start']) & (data_frame.index <= data_set_description['windows']['test_healthy']['end']),
-        'test_anomalous': (data_frame.index > data_set_description['windows']['test_anomalous']['start']) & (data_frame.index <= data_set_description['windows']['test_anomalous']['end']),
-    }
+    windows = {}
 
-    return BearingDataSet(data_frame, masks)
+    for window_key, window_description in data_set_description['windows'].items():
+        windows[window_key] = {
+            'mask': (data_frame.index > window_description['start']) & (data_frame.index <= window_description['end']),
+            'label': window_description['label'],
+        }
+
+    return BearingDataSet(data_frame, windows)
