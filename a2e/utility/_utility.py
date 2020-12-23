@@ -26,7 +26,7 @@ def grid_run(param_grid: dict, run_callable: Callable):
 def build_samples(data: np.ndarray, target_sample_length: int, target_dimensions: int = 2):
     if len(data.shape) == 1:
         drop_data = len(data) % target_sample_length
-        samples = data[:-drop_data]
+        samples = data[:-drop_data] if drop_data > 0 else data
     else:
         input_sample_length = data.shape[1]
         drop_data = input_sample_length % target_sample_length
