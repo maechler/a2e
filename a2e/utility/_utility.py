@@ -51,3 +51,7 @@ def synchronized(method: Callable):
             return method(self, *args, **kwargs)
 
     return synchronized_method
+
+
+def z_score(value, mean, standard_deviation):
+    return abs(value - mean) / standard_deviation
