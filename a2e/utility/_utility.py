@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timezone, tzinfo
 from itertools import product
 from typing import Callable
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, matthews_corrcoef, confusion_matrix, roc_curve, roc_auc_score
 
 
 def timestamp_to_date_time(timestamp: float, tz: tzinfo = timezone.utc) -> datetime:
@@ -55,3 +56,36 @@ def synchronized(method: Callable):
 
 def z_score(value, mean, standard_deviation):
     return abs(value - mean) / standard_deviation
+
+
+def compute_roc(y_true, y_pred, target_format='{:.4f}'):
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred)
+    auc = roc_auc_score(y_true, y_pred)
+
+    return {
+        'auc': float(target_format.format(auc)) if target_format is not None else auc,
+        'thresholds': thresholds.tolist(),
+        'fpr': fpr.tolist(),
+        'tpr': tpr.tolist(),
+    }
+
+
+def compute_classification_metrics(y_true, y_pred, average='binary', target_format='{:.4f}'):
+    accuracy = accuracy_score(y_true, y_pred)
+    precision, recall, f_score, support = precision_recall_fscore_support(y_true, y_pred, average=average)
+    matthews_cc = matthews_corrcoef(y_true, y_pred)
+    confusion_matrix_results = confusion_matrix(y_true, y_pred).tolist()
+
+    return {
+        'accuracy': float(target_format.format(accuracy)) if target_format is not None else accuracy,
+        'precision': float(target_format.format(precision)) if target_format is not None else precision,
+        'recall': float(target_format.format(recall)) if target_format is not None else recall,
+        'f_score': float(target_format.format(f_score)) if target_format is not None else f_score,
+        'matthews_cc': float(target_format.format(matthews_cc)) if target_format is not None else matthews_cc,
+        'confusion_matrix': {
+            'true_negatives': confusion_matrix_results[0][0],
+            'false_negatives': confusion_matrix_results[1][0],
+            'true_positives': confusion_matrix_results[1][1],
+            'false_positives': confusion_matrix_results[0][1],
+        },
+    }

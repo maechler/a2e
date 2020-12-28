@@ -8,6 +8,8 @@ from ._utility import build_samples
 from ._utility import load_from_module
 from ._utility import synchronized
 from ._utility import z_score
+from ._utility import compute_classification_metrics
+from ._utility import compute_roc
 
 __all__ = [
     'timestamp_to_date_time',
@@ -16,4 +18,6 @@ __all__ = [
     'load_from_module',
     'synchronized',
     'z_score',
+    'compute_classification_metrics',
+    'compute_roc',
 ]
