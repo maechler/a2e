@@ -1,8 +1,7 @@
 from numpy import percentile
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
-from a2e.utility import z_score as compute_z_score
+from a2e.utility import z_score as compute_z_score, compute_classification_metrics, compute_roc
 
 config = {
     # See https://medias.schaeffler.us/en/product/rotary/rolling-and-plain-bearings/ball-bearings/deep-groove-ball-bearings/6205-c/p/351057#Product%20Information
@@ -31,10 +30,11 @@ config = {
 run_configs = [
     {'data_set': '400rpm', 'rpm': 400},
     {'data_set': '800rpm', 'rpm': 800},
+    {'data_set': '800rpm_gradual', 'rpm': 800},
     {'data_set': '1200rpm', 'rpm': 1200},
 ]
 
-experiment = Experiment(auto_datetime_directory=True)
+experiment = Experiment(auto_datetime_directory=False)
 experiment.log('config/config', config)
 experiment.log('config/run_configs', run_configs)
 
@@ -51,7 +51,7 @@ def run_callable(run_config: dict):
     bearing_dataset = load_data(data_set_key)
     train = bearing_dataset.train('fft')
     test = bearing_dataset.test('fft', add_label=True)
-    test_healthy, test_anomalous = bearing_dataset.test('fft', split=True)
+    test_healthy, test_anomalous = bearing_dataset.test('fft', split='2fold')
 
     for i, (defect_type, defect_frequency_order) in enumerate(config['defect_frequency_orders'].items(), 0):
         defect_frequency = int(defect_frequency_order * shaft_frequency)
@@ -85,30 +85,34 @@ def run_callable(run_config: dict):
 
     experiment.print('Predicting test dataset')
     prediction = []
+    prediction_zscores = []
+
     for index, row in test.iterrows():
         is_anomaly = False
+        largest_zscore = 0
 
         for defect_frequency in defect_frequencies:
             zscore_threshold = config['zscore_threshold'] if 'zscore_threshold' in config else percentile(defect_frequency['train_z_scores'], config['zscore_threshold_percentile'])
             row_mean = row.iloc[defect_frequency['frequency'] - bandwidth:defect_frequency['frequency'] + bandwidth].mean()
             z_score = compute_z_score(row_mean, defect_frequency['train_mean'], defect_frequency['train_std'])
             is_anomaly = is_anomaly or (z_score > zscore_threshold)
+            largest_zscore = largest_zscore if largest_zscore > z_score else z_score
 
         prediction.append(1 if is_anomaly else 0)
+        prediction_zscores.append(largest_zscore)
 
-    experiment.plot(y=prediction, xlabel='time',  ylabel='is anomaly', key='prediction_anomalies_' + data_set_key)
+    experiment.plot(y=prediction_zscores, xlabel='time',  ylabel='z-score', key='prediction_zscores_' + data_set_key)
+    experiment.plot(y=prediction, xlabel='time',  ylabel='is anomaly', label='prediction', key='prediction_' + data_set_key, close=False)
+    experiment.plot(y=test['label'], label='truth', key='prediction_' + data_set_key, create_figure=False)
 
-    accuracy = accuracy_score(test['label'], prediction)
-    precision, recall, f_score, support = precision_recall_fscore_support(test['label'], prediction, average='binary')
-    stats = {
-        'accuracy': '{:.4f}'.format(accuracy),
-        'precision': '{:.4f}'.format(precision),
-        'recall': '{:.4f}'.format(recall),
-        'f_score': '{:.4f}'.format(f_score),
-    }
+    roc = compute_roc(test['label'], prediction_zscores)
+    metrics = compute_classification_metrics(test['label'], prediction)
+    metrics['auc'] = roc['auc']
 
-    experiment.log('stats', stats)
-    experiment.print(f'stats: accuracy={stats["accuracy"]}, precision={stats["precision"]}, recall={stats["recall"]}, f_score={stats["f_score"]}')
+    experiment.log('roc', roc, to_pickle=True)
+    experiment.log('metrics', metrics)
+    experiment.plot_roc('roc', roc['fpr'], roc['tpr'])
+    experiment.print(f'metrics: accuracy={metrics["accuracy"]}, precision={metrics["precision"]}, recall={metrics["recall"]}, f_score={metrics["f_score"]}, auc={roc["auc"]}')
 
 
 experiment.multi_run(run_configs, run_callable)
