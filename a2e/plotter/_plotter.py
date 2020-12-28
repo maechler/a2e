@@ -88,6 +88,16 @@ def plot_dense_layer_activations(model, layer, sample, out_path=None, show=False
     plot(y=activations.reshape(-1), out_path=os.path.join(out_path, name), show=show)
 
 
+def plot_roc(fpr, tpr, out_path=None, show=False, close=True, create_figure=True):
+    if create_figure:
+        fig, ax = plt.subplots()
+    else:
+        ax = plt.gca()
+
+    ax.plot([0, 1], [0, 1], linestyle='dashed', color='#000000')
+    plot(x=fpr, y=tpr, xlabel='false positive rate', ylabel='true positive rate', out_path=out_path, show=show, close=close, create_figure=False)
+
+
 def plot(
     y,
     x=None,
