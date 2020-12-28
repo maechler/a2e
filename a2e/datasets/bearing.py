@@ -3,6 +3,7 @@ import os
 import yaml
 import pathlib
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from typing import Callable, Union, List
 from tensorflow.keras.utils import get_file
@@ -16,29 +17,49 @@ class BearingDataSet:
         self.data_frame = data_frame
         self.windows = windows
 
-    def all(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> DataFrame:
+    def all(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
         return self.windowed_data(column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
-    def train(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> DataFrame:
+    def train(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
         return self.windowed_data(column, window='train', as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
-    def test(self, column, split=False, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, List[DataFrame]]:
-        windowed_data_frames = []
+    def test(self, column, split=None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, List[DataFrame], np.ndarray, List[np.ndarray]]:
+        windowed_data_frames = {}
 
         for window_key, window_description in self.windows.items():
             if not window_key.startswith('test_'):
                 continue
 
-            windowed_data_frames.append(self.windowed_data(column, window=window_key, as_numpy=False, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label))
+            windowed_data_frames[window_key] = self.windowed_data(column, window=window_key, as_numpy=False, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
-        if split:
-            return list(map(lambda x: x.to_numpy(), windowed_data_frames)) if as_numpy else windowed_data_frames
+        if split is not None:
+            if split == '2fold':
+                healthy_windows = []
+                anomalous_windows = []
+
+                for window_key, window_data_frame in windowed_data_frames.items():
+                    if 'healthy' in window_key:
+                        healthy_windows.append(window_data_frame)
+                    else:
+                        anomalous_windows.append(window_data_frame)
+
+                healthy_data_frame = pd.concat(healthy_windows)
+                anomalous_data_frame = pd.concat(anomalous_windows)
+
+                if as_numpy:
+                    return [healthy_data_frame.to_numpy(), anomalous_data_frame.to_numpy()]
+                else:
+                    return [healthy_data_frame, anomalous_data_frame]
+            elif split == 'nfold':
+                return list(map(lambda x: x.to_numpy(), windowed_data_frames.values())) if as_numpy else windowed_data_frames.values()
+            else:
+                raise ValueError(f'Invalid split option "{split}" provided.')
         else:
-            windowed_data_frame = pd.concat(windowed_data_frames)
+            windowed_data_frame = pd.concat(windowed_data_frames.values())
 
             return windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
 
-    def as_dict(self, column, as_numpy=False, modifier: Callable = None, split_test=False, drop_duplicates: bool = True, add_label: bool = False):
+    def as_dict(self, column, as_numpy=False, modifier: Callable = None, split_test=False, drop_duplicates: bool = True, add_label: bool = False) -> dict:
         datasets_dict = {
             'train': self.train(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label),
             'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
@@ -49,11 +70,11 @@ class BearingDataSet:
                 if window_key.startswith('test_'):
                     datasets_dict[window_key] = self.windowed_data(column=column, window=window_key, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
         else:
-            datasets_dict['test'] = self.test(column=column, split=False, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
+            datasets_dict['test'] = self.test(column=column, split=None, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
         return datasets_dict
 
-    def windowed_data(self, column, window: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> DataFrame:
+    def windowed_data(self, column, window: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
         if window is not None:
             windowed_data_frame = self.data_frame.loc[self.windows[window]['mask']]
         else:
