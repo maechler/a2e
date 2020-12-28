@@ -8,6 +8,7 @@ import traceback
 import re
 import numpy as np
 import pandas as pd
+import pickle
 from itertools import product
 from typing import Callable, Dict, List, Union
 from numpy.random import seed
@@ -69,13 +70,17 @@ class Experiment:
         seed(1)
         set_seed(1)
 
-    def log(self, key: str, value: any, mode: str = 'a'):
+    def log(self, key: str, value: any, mode: str = 'a', to_pickle=False):
         self.print(f'Logging "{key}"')
 
+        key = key + '.pickle' if to_pickle else key
+        mode = mode + 'b' if to_pickle else mode
         out_file_path = self._out_path(key)
 
         with open(out_file_path, mode) as out_file:
-            if isinstance(value, dict) or isinstance(value, list):
+            if to_pickle:
+                pickle.dump(value, out_file)
+            elif isinstance(value, dict) or isinstance(value, list):
                 out_file.write(json.dumps(value, indent=2) + '\n')
             elif isinstance(value, pd.DataFrame):
                 value.to_csv(out_file_path, index=True, header=True)
