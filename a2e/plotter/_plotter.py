@@ -131,12 +131,12 @@ def plot(
     if x is None:
         x = range(1, len(y) + 1)
 
-    ax.plot(x, y, color=color, label=label)
-
     for vline in vlines:
         linestyle = vline['linestyle'] if 'linestyle' in vline else 'solid'
 
         ax.axvline(x=vline['x'], color=vline['color'], label=vline['label'], linestyle=linestyle)
+
+    ax.plot(x, y, color=color, label=label)
 
     if xlabel is not None:
         ax.set_xlabel(xlabel, labelpad=15)
