@@ -19,6 +19,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
 from a2e.experiment._git import git_hash, git_diff
 from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activations
+from a2e.plotter._plotter import plot_roc
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error, mad
 from a2e.utility import grid_run
@@ -86,6 +87,11 @@ class Experiment:
                 value.to_csv(out_file_path, index=True, header=True)
             else:
                 out_file.write(str(value) + '\n')
+
+    def plot_roc(self, key, fpr, tpr, close=True, create_figure=True):
+        self.print(f'Logging roc plot "{key}"')
+
+        plot_roc(fpr, tpr, out_path=self._out_path(key), close=close, create_figure=create_figure)
 
     def plot(self, key: str, x=None, y=None, xlabel=None, ylabel=None, ylim=None, label=None, vlines = [], title = None, time_formatting: bool = False, create_figure: bool = True, close: bool = True):
         self.print(f'Logging plot "{key}"')
