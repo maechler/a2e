@@ -7,6 +7,8 @@ from tensorflow.keras.layers import Dense
 def create_feed_forward_autoencoder(
     input_dimension,
     encoding_dimension,
+    hidden_layer_activations='relu',
+    output_layer_activation='sigmoid',
     optimizer='adam',
     loss='binary_crossentropy',
     activity_regularizer=None,
@@ -30,9 +32,9 @@ def create_feed_forward_autoencoder(
 
     input_layer = Input(shape=(input_dimension,), name='input')
     layer = input_layer
-    encoded = Dense(encoding_dimension, activation='relu', activity_regularizer=activity_regularizer, name='encoded')(layer)
+    encoded = Dense(encoding_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)
     layer = encoded
-    output_layer = Dense(input_dimension, activation='sigmoid', name='output')(layer)
+    output_layer = Dense(input_dimension, activation=output_layer_activation, name='output')(layer)
 
     model = Model(input_layer, output_layer, name='a2e_feed_forward')
 
