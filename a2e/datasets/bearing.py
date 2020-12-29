@@ -5,20 +5,29 @@ import pathlib
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Callable, Union, List
+from typing import Callable, Union, List, Dict
 from tensorflow.keras.utils import get_file
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from a2e.utility import timestamp_to_date_time
 
 
 class BearingDataSet:
+    window_cache = {}
 
-    def __init__(self, data_frame: DataFrame, windows: dict):
+    def __init__(self, data_set_key: str, data_frame: DataFrame, windows: dict):
+        self.data_set_key = data_set_key
         self.data_frame = data_frame
         self.windows = windows
 
     def all(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
-        return self.windowed_data(column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
+        windowed_data_frames = []
+
+        for window_key, window_description in self.windows.items():
+            windowed_data_frames.append(self.windowed_data(column, window=window_key, as_numpy=False, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label))
+
+        windowed_data_frame = pd.concat(windowed_data_frames)
+
+        return windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
 
     def train(self, column, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
         return self.windowed_data(column, window='train', as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
@@ -59,10 +68,11 @@ class BearingDataSet:
 
             return windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
 
-    def as_dict(self, column, as_numpy=False, modifier: Callable = None, split_test=False, drop_duplicates: bool = True, add_label: bool = False) -> dict:
+    def as_dict(self, column, as_numpy=False, modifier: Callable = None, split_test=False, drop_duplicates: bool = True, add_label: bool = False, labels_only: bool = False) -> Union[Dict[str, DataFrame], Dict[str, Series]]:
+        add_label = add_label or labels_only
         datasets_dict = {
+            'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label),
             'train': self.train(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label),
-            'all': self.all(column=column, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
         }
 
         if split_test:
@@ -72,32 +82,41 @@ class BearingDataSet:
         else:
             datasets_dict['test'] = self.test(column=column, split=None, as_numpy=as_numpy, modifier=modifier, drop_duplicates=drop_duplicates, add_label=add_label)
 
+        if labels_only:
+            for key, data_frame in datasets_dict.items():
+                datasets_dict[key] = data_frame['label']
+
         return datasets_dict
 
-    def windowed_data(self, column, window: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
-        if window is not None:
-            windowed_data_frame = self.data_frame.loc[self.windows[window]['mask']]
-        else:
-            windowed_data_frame = self.data_frame
+    def windowed_data(self, column: str, window: str = None, as_numpy=False, modifier: Callable = None, drop_duplicates: bool = True, add_label: bool = False) -> Union[DataFrame, np.ndarray]:
+        cache_hash = str(hash(f'{self.data_set_key}{column}{window}{as_numpy}{modifier}{drop_duplicates}{add_label}'))
 
-        if column == 'fft':
-            windowed_data_frame = windowed_data_frame.iloc[:, 4:]
-        else:
-            windowed_data_frame = windowed_data_frame[[column]]
-
-        if drop_duplicates:
-            if column == 'fft':
-                self.drop_adjacent_duplicates(windowed_data_frame, ['fft_1', 'fft_2', 'fft_3'])
+        if cache_hash not in self.window_cache:
+            if window is not None:
+                windowed_data_frame = self.data_frame.loc[self.windows[window]['mask']].copy()
             else:
-                self.drop_adjacent_duplicates(windowed_data_frame, [column])
+                windowed_data_frame = self.data_frame.copy()
 
-        if add_label:
-            windowed_data_frame['label'] = self.windows[window]['label']
+            if add_label:
+                windowed_data_frame['label'] = self.windows[window]['label']
 
-        if modifier is not None:
-            windowed_data_frame = modifier(windowed_data_frame)
+            if drop_duplicates:
+                if column == 'fft':
+                    self.drop_adjacent_duplicates(windowed_data_frame, ['fft_1', 'fft_2', 'fft_3'])
+                else:
+                    self.drop_adjacent_duplicates(windowed_data_frame, [column])
 
-        return windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
+            if modifier is not None:
+                windowed_data_frame = modifier(windowed_data_frame)
+
+            if column == 'fft':
+                windowed_data_frame = windowed_data_frame.iloc[:, 4:]
+            else:
+                windowed_data_frame = windowed_data_frame[[column]]
+
+            self.window_cache[cache_hash] = windowed_data_frame.to_numpy() if as_numpy else windowed_data_frame
+
+        return self.window_cache[cache_hash].copy()
 
     def drop_adjacent_duplicates(self, data_frame: DataFrame, columns: list):
         previous_row = None
@@ -169,4 +188,4 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
             'label': window_description['label'],
         }
 
-    return BearingDataSet(data_frame, windows)
+    return BearingDataSet(data_set_key, data_frame, windows)
