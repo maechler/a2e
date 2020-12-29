@@ -9,20 +9,22 @@ import re
 import numpy as np
 import pandas as pd
 import pickle
+from statistics import mean, stdev
 from itertools import product
 from typing import Callable, Dict, List, Union
+from numpy import percentile
 from numpy.random import seed
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from tensorflow.python.framework.random_seed import set_seed
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
+from tensorflow.python.keras.models import load_model
 from a2e.experiment._git import git_hash, git_diff
-from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activations
-from a2e.plotter._plotter import plot_roc
+from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activations, plot_roc
 from a2e.processing.health import compute_health_score
-from a2e.processing.stats import compute_reconstruction_error, mad
-from a2e.utility import grid_run
+from a2e.processing.stats import compute_reconstruction_error
+from a2e.utility import grid_run, compute_roc, compute_classification_metrics, z_score
 
 
 class Experiment:
@@ -128,19 +130,31 @@ class Experiment:
             plot_model_layer_weights(model, out_path=self._out_path(f'{log_base_path}/weights', is_directory=True))
             model.save(self._out_path(f'{log_base_path}/model.h5'))
 
-    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], key: str = None, pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False):
+    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], labels: Dict[str, Series] = None, key: str = None, pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False, threshold_percentile: int = 99):
         self.print('Logging predictions')
 
         log_base_path = 'predictions' if key is None else f'predictions/{key}'
         pre_processing_x = pre_processing_x if pre_processing_x is not None else pre_processing
         pre_processing_y = pre_processing_y if pre_processing_y is not None else pre_processing
         train_reconstruction_error = None
+        train_reconstruction_error_rolling = None
+        train_z_scores = None
+        train_z_scores_rolling = None
 
         if 'train' in data_frames:
             train_data_frame = data_frames['train']
             train_samples_x = pre_processing_x(train_data_frame) if pre_processing_x is not None else train_data_frame.to_numpy()
             train_samples_y = pre_processing_y(train_data_frame) if pre_processing_y is not None else train_data_frame.to_numpy()
+
             train_reconstruction_error = compute_reconstruction_error(train_samples_y, model.predict(train_samples_x), has_multiple_features=has_multiple_features)
+            train_reconstruction_error_mean = mean(train_reconstruction_error)
+            train_reconstruction_error_std = stdev(train_reconstruction_error)
+            train_z_scores = list(map(lambda x: z_score(x, train_reconstruction_error_mean, train_reconstruction_error_std), train_reconstruction_error))
+
+            train_reconstruction_error_rolling = np.convolve(train_reconstruction_error, np.ones(rolling_window_size)/rolling_window_size, mode='valid')
+            train_reconstruction_error_rolling_mean = mean(train_reconstruction_error_rolling)
+            train_reconstruction_error_rolling_std = stdev(train_reconstruction_error_rolling)
+            train_z_scores_rolling = list(map(lambda x: z_score(x, train_reconstruction_error_rolling_mean, train_reconstruction_error_rolling_std), train_reconstruction_error_rolling))
 
         for data_frame_key, data_frame in data_frames.items():
             data_frame = data_frame.copy()
@@ -156,22 +170,51 @@ class Experiment:
                 data_frame = data_frame.iloc[:cut_rows].copy()
 
             data_frame['reconstruction_error'] = reconstruction_error
-            data_frame['reconstruction_error_rolling'] = data_frame['reconstruction_error'].rolling(window=rolling_window_size).median()
-
-            self.log(f'{data_frame_log_path}/median', np.median(reconstruction_error))
-            self.log(f'{data_frame_log_path}/mad', mad(reconstruction_error))
+            data_frame['reconstruction_error_rolling'] = data_frame['reconstruction_error'].rolling(window=rolling_window_size).median().fillna(method='backfill')
+            data_frame['z_score'] = list(map(lambda x: z_score(x, train_reconstruction_error_mean, train_reconstruction_error_std), reconstruction_error))
+            data_frame['z_score_rolling'] = list(map(lambda x: z_score(x, train_reconstruction_error_rolling_mean, train_reconstruction_error_rolling_std), data_frame['reconstruction_error_rolling'].values))
 
             self.plot(f'{data_frame_log_path}/reconstruction_error', x=data_frame.index, y=reconstruction_error, label='reconstruction error', time_formatting=True, close=False)
             self.plot(f'{data_frame_log_path}/reconstruction_error_rolling', x=data_frame.index, y=data_frame['reconstruction_error_rolling'], label='rolling reconstruction error', time_formatting=True, create_figure=False)
 
+            self.plot(f'{data_frame_log_path}/z_score', x=data_frame.index, y=data_frame['z_score'], label='z-score', time_formatting=True, close=False)
+            self.plot(f'{data_frame_log_path}/z_score_rolling', x=data_frame.index, y=data_frame['z_score_rolling'], label='rolling z-score', time_formatting=True, create_figure=False)
+
+            if data_frame_key in labels and len(set(labels[data_frame_key].values)) > 1:
+                roc = compute_roc(labels[data_frame_key].values, reconstruction_error)
+                roc_rolling = compute_roc(labels[data_frame_key].values, data_frame['reconstruction_error_rolling'].values)
+
+                self.log(f'{data_frame_log_path}/roc/auc', roc['auc'])
+                self.log(f'{data_frame_log_path}/roc/data', roc, to_pickle=True)
+                self.plot_roc(f'{data_frame_log_path}/roc/fpr_tpr', roc['fpr'], roc['tpr'])
+
+                self.log(f'{data_frame_log_path}/roc/auc_rolling', roc_rolling['auc'])
+                self.log(f'{data_frame_log_path}/roc/data_rolling', roc_rolling, to_pickle=True)
+                self.plot_roc(f'{data_frame_log_path}/roc/fpr_tpr_rolling', roc_rolling['fpr'], roc_rolling['tpr'])
+
             if train_reconstruction_error is not None:
                 data_frame['health_score'] = compute_health_score(train_reconstruction_error, reconstruction_error)
-                data_frame['health_score_rolling'] = data_frame['health_score'].rolling(window=rolling_window_size).median()
+                data_frame['health_score_rolling'] = data_frame['health_score'].rolling(window=rolling_window_size).median().fillna(method='backfill')
+                log_metrics = ['reconstruction_error', 'reconstruction_error_rolling', 'health_score', 'health_score_rolling']
 
-                self.plot(f'{data_frame_log_path}/health_score', x=data_frame.index, y=data_frame['health_score'], label='health score', ylim=[0, 1], time_formatting=True, close=False)
-                self.plot(f'{data_frame_log_path}/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median(), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
+                if data_frame_key in labels and len(set(labels[data_frame_key].values)) > 1:
+                    threshold = percentile(train_z_scores, threshold_percentile)
+                    rolling_threshold = percentile(train_z_scores_rolling, threshold_percentile)
+                    prediction = (data_frame['z_score'] > threshold).astype(int)
+                    prediction_rolling = (data_frame['z_score_rolling'] > rolling_threshold).astype(int)
+                    metrics = compute_classification_metrics(labels[data_frame_key].values, prediction)
+                    metrics_rolling = compute_classification_metrics(labels[data_frame_key].values, prediction_rolling)
 
-                self.log(f'{data_frame_log_path}/metrics.csv', data_frame[['reconstruction_error', 'reconstruction_error_rolling', 'health_score', 'health_score_rolling']])
+                    self.log(f'{data_frame_log_path}/classification/thresholds', {'threshold_percentile': threshold_percentile, 'threshold': threshold, 'rolling_threshold': rolling_threshold})
+                    self.log(f'{data_frame_log_path}/classification/metrics', metrics)
+                    self.log(f'{data_frame_log_path}/classification/metrics_rolling', metrics_rolling)
+                    log_metrics.append('z_score')
+                    log_metrics.append('z_score_rolling')
+
+                self.plot(f'{data_frame_log_path}/health_score/health_score', x=data_frame.index, y=data_frame['health_score'], label='health score', ylim=[0, 1], time_formatting=True, close=False)
+                self.plot(f'{data_frame_log_path}/health_score/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median().fillna(method='backfill'), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
+
+                self.log(f'{data_frame_log_path}/metrics.csv', data_frame[log_metrics])
             else:
                 self.log(f'{data_frame_log_path}/metrics.csv', data_frame[['reconstruction_error', 'reconstruction_error_rolling']])
 
@@ -222,6 +265,9 @@ class Experiment:
             )
 
         return callbacks
+
+    def load_best_model(self) -> Model:
+        return load_model(self._out_path('training/callbacks/model.best.h5'))
 
     def multi_run(self, configurations: Union[dict, list], run_callable: Callable, run_id_callable: Callable = None, auto_run_id: bool = True):
         experiment = self
