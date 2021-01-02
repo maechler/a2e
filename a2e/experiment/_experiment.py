@@ -9,6 +9,7 @@ import re
 import numpy as np
 import pandas as pd
 import pickle
+import logging
 from statistics import mean, stdev
 from itertools import product
 from typing import Callable, Dict, List, Union
@@ -25,11 +26,14 @@ from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activat
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error
 from a2e.utility import grid_run, compute_roc, compute_classification_metrics, z_score
+import warnings
+
+warnings.simplefilter(action='ignore', category=Warning)
 
 
 class Experiment:
 
-    def __init__(self, experiment_id: str = None, verbose: bool = True, out_directory: str = None, auto_datetime_directory: bool = True, set_seeds: bool = True):
+    def __init__(self, experiment_id: str = None, verbose: bool = True, out_directory: str = None, auto_datetime_directory: bool = True, set_seeds: bool = True, suppress_warnings: bool = True):
         self.experiment_id = experiment_id
         self.experiment_start = datetime.datetime.now()
         self.out_directory = out_directory
@@ -39,7 +43,8 @@ class Experiment:
         self.run_id = None
 
         if set_seeds:
-            self._set_seeds()
+            seed(1)
+            set_seed(1)
 
         if self.experiment_id is None:
             caller_frame = inspect.stack()[1]
@@ -65,13 +70,15 @@ class Experiment:
         self.log('git/hash', git_hash())
         self.log('git/diff', git_diff())
 
+        if suppress_warnings:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+            logging.disable()
+        else:
+            warnings.simplefilter(action='default', category=Warning)
+
     def __exit__(self):
         self.log('timing.log', f'experiment_end={datetime.datetime.now()}')
         self.log('timing.log', f'experiment_duration={datetime.datetime.now() - self.experiment_start}')
-
-    def _set_seeds(self):
-        seed(1)
-        set_seed(1)
 
     def log(self, key: str, value: any, mode: str = 'a', to_pickle=False):
         self.print(f'Logging "{key}"')
