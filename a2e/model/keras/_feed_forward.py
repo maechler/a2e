@@ -2,6 +2,8 @@ import math
 
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import Dense
+from tensorflow.python.keras.optimizer_v2.adam import Adam
+from tensorflow.python.keras.optimizer_v2.gradient_descent import SGD
 
 
 def create_feed_forward_autoencoder(
@@ -52,6 +54,8 @@ def create_deep_feed_forward_autoencoder(
     optimizer='adam',
     loss='binary_crossentropy',
     activity_regularizer=None,
+    learning_rate=None,
+    sgd_momentum=None,
 ) -> Model:
     if number_of_hidden_layers % 2 == 0:
         raise ValueError(f'Number of hidden layers must be odd, "{number_of_hidden_layers}" provided.')
@@ -80,6 +84,11 @@ def create_deep_feed_forward_autoencoder(
     output_layer = Dense(input_dimension, activation=output_layer_activation, name='output')(layer)
 
     model = Model(input_layer, output_layer, name='a2e_deep_feed_forward')
+
+    if optimizer == 'adam':
+        optimizer = Adam(learning_rate=learning_rate)
+    elif optimizer == 'sgd':
+        optimizer = SGD(learning_rate=learning_rate, momentum=sgd_momentum)
 
     model.compile(optimizer=optimizer, loss=loss)
 
