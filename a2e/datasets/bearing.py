@@ -175,12 +175,15 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
     data_set_description_origin = f'{a2e_data_path}{data_set_key}.yaml'
     data_set_origin = f'{a2e_data_path}{data_set_key}.csv.gz'
     data_set_description_path = get_file(data_set_key + '.yaml', origin=data_set_description_origin, cache_dir=cache_dir, cache_subdir='datasets/bearing')
-    data_set_description = yaml.load(open(data_set_description_path), Loader=yaml.FullLoader)
-    data_set_path = get_file(data_set_key + '.csv.gz', origin=data_set_origin, cache_dir=cache_dir, cache_subdir='datasets/bearing', file_hash=data_set_description['data']['md5_hash'], hash_algorithm='md5')
-
-    data_frame = pd.read_csv(gzip.open(data_set_path, mode='rt'), parse_dates=[data_set_description['data']['index_column']], date_parser=lambda x: timestamp_to_date_time(float(x)), quotechar='"', sep=',')
-    data_frame = data_frame.set_index(data_set_description['data']['index_column'])
     windows = {}
+
+    with open(data_set_description_path) as data_set_description_file:
+        data_set_description = yaml.load(data_set_description_file, Loader=yaml.FullLoader)
+        data_set_path = get_file(data_set_key + '.csv.gz', origin=data_set_origin, cache_dir=cache_dir, cache_subdir='datasets/bearing', file_hash=data_set_description['data']['md5_hash'], hash_algorithm='md5')
+
+    with gzip.open(data_set_path, mode='rt') as data_set_file:
+        data_frame = pd.read_csv(data_set_file, parse_dates=[data_set_description['data']['index_column']], date_parser=lambda x: timestamp_to_date_time(float(x)), quotechar='"', sep=',')
+        data_frame = data_frame.set_index(data_set_description['data']['index_column'])
 
     for window_key, window_description in data_set_description['windows'].items():
         windows[window_key] = {
