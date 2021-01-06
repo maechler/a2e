@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import logging
+import matplotlib.pyplot as plt
 from statistics import mean, stdev
 from itertools import product
 from typing import Callable, Dict, List, Union
@@ -22,6 +23,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, History, Callback
 from tensorflow.python.keras.models import load_model
 from a2e.experiment._git import git_hash, git_diff
+from a2e.optimizer import OptimizationResult
 from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activations, plot_roc
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error
@@ -123,7 +125,7 @@ class Experiment:
 
         self.log(f'{log_base_path}/history.csv', pd.DataFrame.from_dict(history.history))
 
-    def log_model(self, model: Model, key: str = None):
+    def log_keras_model(self, model: Model, key: str = None):
         self.print('Logging model')
 
         log_base_path = 'model' if key is None else f'model/{key}'
@@ -137,7 +139,26 @@ class Experiment:
             plot_model_layer_weights(model, out_path=self._out_path(f'{log_base_path}/weights', is_directory=True))
             model.save(self._out_path(f'{log_base_path}/model.h5'))
 
-    def log_predictions(self, model: Model, data_frames: Dict[str, DataFrame], labels: Dict[str, Series] = None, key: str = None, pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False, threshold_percentile: int = 99):
+    def log_optimization_result(self, optimization_result: OptimizationResult):
+        evaluation_results = optimization_result.evaluation_results
+        evaluation_results_without_outliers = evaluation_results[((evaluation_results['cost'] - evaluation_results['cost'].median()) / evaluation_results['cost'].std()).abs() < 3]
+
+        self.log('search/history.csv', evaluation_results, mode='w')
+        self.log('search/best_configuration', optimization_result.best_configuration())
+        self.log('search/average_configuration', optimization_result.configuration_by_percentile_rank(0.5))
+        self.log('search/worst_configuration', optimization_result.configuration_by_percentile_rank(0.0))
+
+        self.plot('search/best_model_id', y=evaluation_results['best_evaluation_id'], xlabel='iteration', ylabel='best evaluation ID')
+
+        self.plot('search/cost', y=evaluation_results['cost'], xlabel='iteration', ylabel='cost')
+        evaluation_results.plot(subplots=True, figsize=(10, 100))
+        plt.gcf().savefig(self._out_path('search/history.pdf'), format='pdf')
+
+        self.plot('search/cost_cleaned', y=evaluation_results_without_outliers['cost'], xlabel='iteration', ylabel='cost')
+        evaluation_results_without_outliers.plot(subplots=True, figsize=(10, 100))
+        plt.gcf().savefig(self._out_path('search/history_cleaned.pdf'), format='pdf')
+
+    def log_keras_predictions(self, model: Model, data_frames: Dict[str, DataFrame], labels: Dict[str, Series] = None, key: str = None, pre_processing: Callable = None, pre_processing_x: Callable = None, pre_processing_y: Callable = None, rolling_window_size: int = 200, log_samples: List[int] = [0, -1], has_multiple_features: bool = False, threshold_percentile: int = 99):
         self.print('Logging predictions')
 
         log_base_path = 'predictions' if key is None else f'predictions/{key}'
@@ -187,7 +208,7 @@ class Experiment:
             self.plot(f'{data_frame_log_path}/z_score', x=data_frame.index, y=data_frame['z_score'], label='z-score', time_formatting=True, close=False)
             self.plot(f'{data_frame_log_path}/z_score_rolling', x=data_frame.index, y=data_frame['z_score_rolling'], label='rolling z-score', time_formatting=True, create_figure=False)
 
-            if data_frame_key in labels and len(set(labels[data_frame_key].values)) > 1:
+            if labels is not None and data_frame_key in labels and len(set(labels[data_frame_key].values)) > 1:
                 roc = compute_roc(labels[data_frame_key].values, reconstruction_error)
                 roc_rolling = compute_roc(labels[data_frame_key].values, data_frame['reconstruction_error_rolling'].values)
 
@@ -204,7 +225,7 @@ class Experiment:
                 data_frame['health_score_rolling'] = data_frame['health_score'].rolling(window=rolling_window_size).median().fillna(method='backfill')
                 log_metrics = ['reconstruction_error', 'reconstruction_error_rolling', 'health_score', 'health_score_rolling']
 
-                if data_frame_key in labels and len(set(labels[data_frame_key].values)) > 1:
+                if labels is not None and data_frame_key in labels and len(set(labels[data_frame_key].values)) > 1:
                     threshold = percentile(train_z_scores, threshold_percentile)
                     rolling_threshold = percentile(train_z_scores_rolling, threshold_percentile)
                     prediction = (data_frame['z_score'] > threshold).astype(int)
@@ -249,7 +270,7 @@ class Experiment:
         if self.verbose:
             datetime_string = datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
             message_prefix = f'[{datetime_string}][{self.experiment_id}]'
-            message_prefix = message_prefix + f'[pid={os.getpid()}]'
+            #message_prefix = message_prefix + f'[pid={os.getpid()}]'
 
             if self.run_id is not None:
                 message_prefix = message_prefix + f'[run_id={self.run_id}]'
@@ -283,7 +304,7 @@ class Experiment:
 
         def run_callable_wrapper(params):
             if auto_run_id:
-                self.run_id = re.sub('[(){}<>\',\s"]', '', '_'.join(map(str, params.values())))
+                self.run_id = re.sub('[(){}<>\',\s"]', '', '/'.join(map(str, params.values())))
             elif run_id_callable is not None:
                 self.run_id = run_id_callable(params)
 
@@ -335,19 +356,6 @@ class Experiment:
         self.log('timing.log', f'end_run[{self.run_id}]={datetime.datetime.now()}')
         self.log('timing.log', f'run_duration[{self.run_id}]={datetime.datetime.now() - self.run_start}')
         self.run_id = None
-
-    def scoring_callbacks(self):
-        experiment = self
-
-        def scoring_callback(estimator_search, score_info):
-            nonlocal experiment
-            search_history = estimator_search.search_history()
-
-            experiment.log('search/history.csv', search_history, mode='w')
-            experiment.plot('search/score', y=search_history['score'], xlabel='iteration', ylabel='score')
-            experiment.plot('search/best_model_id', y=search_history['best_model_id'], xlabel='iteration', ylabel='best model ID', ylim=[0, len(search_history['best_model_id'])])
-
-        return [scoring_callback]
 
 
 class ExperimentCallback(Callback):
