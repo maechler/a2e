@@ -1,122 +1,118 @@
-from tensorflow.python.keras.optimizer_v2.adam import Adam
-from tensorflow.python.keras.optimizer_v2.learning_rate_schedule import ExponentialDecay
-from a2e.automl import EstimatorSearch, KerasEstimator, KerasPredictScorer
+from typing import cast
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
-from a2e.models import create_deep_feed_forward_autoencoder
+from a2e.model.keras import create_deep_feed_forward_autoencoder
+from a2e.model import KerasModel
+from a2e.optimizer import create_optimizer
 from a2e.utility import load_from_module
-
-
-class MyAdam(Adam):
-    def __str__(self):
-        if isinstance(self._hyper['learning_rate'], ExponentialDecay):
-            return f'adam_exp_{self._hyper["learning_rate"].initial_learning_rate}'
-        else:
-            return f'adam_{self._hyper["learning_rate"].numpy()}'
+import ConfigSpace as cs
+import ConfigSpace.hyperparameters as csh
 
 
 config = {
-    'validation_split': 0.1,
+    'validation_split': 0.2,
     'data_column': 'fft',
-    'optimization_methods': [
-        'bayes',
-        #'grid',
-        #'random',
-    ],
-    'data_sets': [
-         '400rpm',
-         '800rpm',
-         '800rpm_gradual',
-         '1200rpm',
-         'variable_rpm'
-    ],
-    'score_functions': [
-        ('a2e.automl.reconstruction_error_score', False),
-        ('a2e.automl.reconstruction_error_compression_score', False),
-        ('a2e.automl.health_score', True),
-        ('a2e.automl.min_health_score', True),
-        ('a2e.automl.val_loss_score', False),
-        ('a2e.automl.loss_score', False),
-        ('a2e.automl.f1_loss_compression_score', True),
-    ]
 }
+
 run_configs = {
-    'data_set': config['data_sets'],
-    'score_function': config['score_functions'],
-    'optimization_method': config['optimization_methods'],
+    'data_set': [
+         #'400rpm',
+         #'800rpm',
+         '800rpm_gradual',
+         #'1200rpm',
+         #'variable_rpm'
+    ],
+    'optimizer': [
+        # 'BayesianGaussianProcessOptimizer',
+        'BayesianRandomForrestOptimizer',
+        # 'BayesianHyperbandOptimizer',
+        # 'HyperbandOptimizer',
+        #'RandomOptimizer',
+    ],
+    'evaluation_function': [
+        #'a2e.evaluation.reconstruction_error_cost',
+        #'a2e.evaluation.health_score_cost',
+        #'a2e.evaluation.min_health_score_cost',
+        #'a2e.evaluation.keras.loss_cost',
+        #'a2e.evaluation.keras.val_loss_cost',
+        #'a2e.evaluation.keras.val_loss_vs_compression_cost',
+        'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
+    ],
 }
-param_grid = {
-    'epochs': [20],
-    'batch_size': [50, 100, 200, 300],
-    'input_dimension': [1025],
-    'number_of_hidden_layers': list(range(1, 10, 2)),
-    'compression_per_layer': list(map(lambda x: x/100.0, range(30, 100, 5))),
-    'hidden_layer_activations': ['relu', 'linear', 'sigmoid', 'tanh'],
-    'output_layer_activation': ['relu', 'linear', 'sigmoid', 'tanh'],
-    'loss': ['mse', 'binary_crossentropy'],
-    #'optimizer': [
-    #    MyAdam(learning_rate=0.01),
-    #    MyAdam(learning_rate=0.001),  # Adam default
-    #    MyAdam(learning_rate=0.0001),
-    #    MyAdam(learning_rate=ExponentialDecay(0.01, decay_steps=100000, decay_rate=0.96)),
-    #    MyAdam(learning_rate=ExponentialDecay(0.001, decay_steps=10000, decay_rate=0.96)),
-    #],
-}
 
-experiment = Experiment(auto_datetime_directory=True)
-experiment.log('config/config', config)
-experiment.log('config/run_configs', run_configs)
-#experiment.log('config/param_grid', param_grid)
+configuration_space = cs.ConfigurationSpace(seed=1234)
 
+configuration_space.add_hyperparameters([
+    # csh.CategoricalHyperparameter('_pre_processing', [
+    #     lambda x: x,
+    #     min_max_scale,
+    #     partial(min_max_scale, fit_mode='per_sample'),
+    # ]),
+    csh.Constant('input_dimension', value=1025),
+    csh.CategoricalHyperparameter('number_of_hidden_layers', list(range(1, 10, 2))),
+    csh.UniformFloatHyperparameter('compression_per_layer', lower=0.3, upper=0.9, default_value=0.7),
+    csh.UniformFloatHyperparameter('learning_rate', lower=1e-6, upper=1e-1, default_value=1e-2),
+    csh.CategoricalHyperparameter('hidden_layer_activations', ['relu', 'linear', 'sigmoid', 'tanh']),
+    csh.CategoricalHyperparameter('output_layer_activation', ['relu', 'linear', 'sigmoid', 'tanh']),
+    csh.CategoricalHyperparameter('loss', ['mse', 'binary_crossentropy']),
+])
 
-def run_callable(run_config: dict):
-    experiment.print('Loading data')
-    bearing_dataset = load_data(run_config['data_set'])
-    x_train = bearing_dataset.train(column=config['data_column'], as_numpy=True)
+cs_sgd_momentum = csh.UniformFloatHyperparameter('sgd_momentum', lower=0.0, upper=0.99, default_value=0.9)
+cs_optimizer = csh.CategoricalHyperparameter('optimizer', ['adam', 'sgd'])
 
-    estimator = KerasEstimator(build_fn=create_deep_feed_forward_autoencoder, validation_split=0.1)
-    scorer = KerasPredictScorer(load_from_module(run_config['score_function'][0]), greater_is_better=run_config['score_function'][1])
-    estimator_search = EstimatorSearch(
-        estimator=estimator,
-        parameter_grid=param_grid,
-        scoring=scorer,
-        n_jobs=1,
-        n_iterations=100,
-        optimizer=run_config['optimization_method'],
-        scoring_callbacks=experiment.scoring_callbacks(),
-    )
-
-    search_space_size = estimator_search.search_space_size()
-    experiment.print(f'Search space size={search_space_size}')
-    experiment.log('search/search_space_size', search_space_size)
-
-    estimator_search.fit(x_train)
-
-    sorted_history = estimator_search.search_history(sort_by_score=True)
-    prediction_data_frames = {
-        'train': bearing_dataset.train(column=config['data_column']),
-        'test': bearing_dataset.test(column=config['data_column']),
-        'all': bearing_dataset.all(column=config['data_column']),
-    }
-    # Log best estimator
-    best_estimator = estimator_search.fit_by_model_id(sorted_history.iloc[0]['model_id'], x_train, x_train)
-    experiment.log_model(best_estimator.model, key='best')
-    experiment.log_predictions(
-        best_estimator.model,
-        prediction_data_frames,
-        key='best',
-        has_multiple_features=True,
-    )
-
-    # Log worst estimator
-    worst_estimator = estimator_search.fit_by_model_id(sorted_history.iloc[-1]['model_id'], x_train, x_train)
-    experiment.log_model(worst_estimator.model, key='worst')
-    experiment.log_predictions(
-        worst_estimator.model,
-        prediction_data_frames,
-        key='worst',
-        has_multiple_features=True,
-   )
+configuration_space.add_hyperparameters([cs_optimizer, cs_sgd_momentum])
+configuration_space.add_condition(cs.EqualsCondition(cs_sgd_momentum, cs_optimizer, 'sgd'))
 
 
-experiment.multi_run(run_configs, run_callable)
+if __name__ == '__main__':
+    experiment = Experiment(auto_datetime_directory=True)
+    experiment.log('config/config', config)
+    experiment.log('config/run_configs', run_configs)
+    experiment.log('config/configuration_space', str(configuration_space))
+
+    def run_callable(run_config: dict):
+        experiment.print('Loading data')
+        bearing_dataset = load_data(run_config['data_set'])
+        x_train = bearing_dataset.train(column=config['data_column'], as_numpy=True)
+
+        experiment.print('Initializing optimizer')
+        optimizer = create_optimizer(
+            run_config['optimizer'],
+            configuration_space=configuration_space,
+            model=KerasModel(
+                create_model_function=create_deep_feed_forward_autoencoder,
+                evaluation_function=load_from_module(run_config['evaluation_function']),
+            ),
+            x=x_train,
+            max_iterations=10,
+            min_budget=5,
+            max_budget=5,
+            run_id=experiment.run_id,
+            validation_split=config['validation_split'],
+        )
+
+        experiment.print('Optimizing')
+        optimization_result = optimizer.optimize()
+
+        experiment.print('Logging optimization results')
+        experiment.log_optimization_result(optimization_result)
+
+        log_model_configs = [
+            {'key': 'best', 'percentile_rank': 1.0},
+            {'key': 'average', 'percentile_rank': 0.5},
+            {'key': 'worst', 'percentile_rank': 0.0},
+        ]
+
+        for log_model_config in log_model_configs:
+            keras_model = cast(KerasModel, optimizer.refit_by_percentile_rank(log_model_config['percentile_rank']))
+
+            experiment.log_keras_model(keras_model.model, key=log_model_config['key'])
+            experiment.log_keras_predictions(
+                keras_model.model,
+                bearing_dataset.as_dict(config['data_column']),
+                key=log_model_config['key'],
+                labels=bearing_dataset.as_dict(config['data_column'], labels_only=True),
+                has_multiple_features=True,
+            )
+
+    experiment.multi_run(run_configs, run_callable)
