@@ -68,8 +68,8 @@ def run_callable(run_config: dict):
     )
 
     experiment.log_history(history)
-    experiment.log_model(model)
-    experiment.log_predictions(
+    experiment.log_keras_model(model)
+    experiment.log_keras_predictions(
         model=model,
         data_frames=data_frames,
         pre_processing=pre_processing,

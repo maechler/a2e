@@ -64,7 +64,7 @@ def run_callable(run_config: dict):
     experiment.print('Building model')
     model_function = load_from_module(run_config['model_function'])
     model = model_function(config['input_size'])
-    experiment.log_model(model)
+    experiment.log_keras_model(model)
 
     experiment.print('Loading data')
     bearing_dataset = load_data(run_config['data_set_modifier_combination']['data_set'])
@@ -83,8 +83,8 @@ def run_callable(run_config: dict):
     )
 
     experiment.log_history(history)
-    experiment.log_model(model)
-    experiment.log_predictions(
+    experiment.log_keras_model(model)
+    experiment.log_keras_predictions(
         model=model,
         data_frames=data_frames,
         pre_processing=pre_processing,

@@ -72,10 +72,10 @@ def run_callable(run_config: dict):
 
     best_model = experiment.load_best_model()
 
-    experiment.log_model(model, key='current')
-    experiment.log_model(best_model, key='best')
+    experiment.log_keras_model(model, key='current')
+    experiment.log_keras_model(best_model, key='best')
     experiment.log_history(history)
-    experiment.log_predictions(
+    experiment.log_keras_predictions(
         model=best_model,
         data_frames=data_frames,
         labels=labels,
