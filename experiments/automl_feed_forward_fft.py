@@ -1,9 +1,10 @@
+import traceback
 from typing import cast
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
 from a2e.model.keras import create_deep_feed_forward_autoencoder
 from a2e.model import KerasModel
-from a2e.optimizer import create_optimizer
+from a2e.optimizer import create_optimizer, OptimizationResult
 from a2e.utility import load_from_module
 import ConfigSpace as cs
 import ConfigSpace.hyperparameters as csh
@@ -16,59 +17,76 @@ config = {
 
 run_configs = {
     'data_set': [
-         #'400rpm',
-         #'800rpm',
+         '400rpm',
+         '800rpm',
          '800rpm_gradual',
-         #'1200rpm',
-         #'variable_rpm'
+         '1200rpm',
+         'variable_rpm'
     ],
     'optimizer': [
         # 'BayesianGaussianProcessOptimizer',
         'BayesianRandomForrestOptimizer',
         # 'BayesianHyperbandOptimizer',
         # 'HyperbandOptimizer',
-        #'RandomOptimizer',
+        # 'RandomOptimizer',
     ],
     'evaluation_function': [
-        #'a2e.evaluation.reconstruction_error_cost',
-        #'a2e.evaluation.health_score_cost',
-        #'a2e.evaluation.min_health_score_cost',
-        #'a2e.evaluation.keras.loss_cost',
-        #'a2e.evaluation.keras.val_loss_cost',
-        #'a2e.evaluation.keras.val_loss_vs_compression_cost',
+        'a2e.evaluation.reconstruction_error_cost',
         'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
+        'a2e.evaluation.keras.reconstruction_error_vs_regularized_compression_cost',
+        'a2e.evaluation.keras.loss_cost',
+        'a2e.evaluation.keras.val_loss_cost',
+        'a2e.evaluation.keras.val_loss_vs_compression_cost',
+        'a2e.evaluation.health_score_cost',
+        'a2e.evaluation.min_health_score_cost',
     ],
 }
 
-configuration_space = cs.ConfigurationSpace(seed=1234)
+config_space = cs.ConfigurationSpace(seed=1234)
 
-configuration_space.add_hyperparameters([
-    # csh.CategoricalHyperparameter('_pre_processing', [
-    #     lambda x: x,
-    #     min_max_scale,
-    #     partial(min_max_scale, fit_mode='per_sample'),
-    # ]),
+config_space.add_hyperparameters([
+    csh.CategoricalHyperparameter('_pre_processing', [
+        'none',
+        'min_max_scale',
+        'min_max_scale_per_sample',
+        'std_scale',
+        'std_scale_per_sample',
+    ]),
+
     csh.Constant('input_dimension', value=1025),
     csh.CategoricalHyperparameter('number_of_hidden_layers', list(range(1, 10, 2))),
     csh.UniformFloatHyperparameter('compression_per_layer', lower=0.3, upper=0.9, default_value=0.7),
-    csh.UniformFloatHyperparameter('learning_rate', lower=1e-6, upper=1e-1, default_value=1e-2),
     csh.CategoricalHyperparameter('hidden_layer_activations', ['relu', 'linear', 'sigmoid', 'tanh']),
     csh.CategoricalHyperparameter('output_layer_activation', ['relu', 'linear', 'sigmoid', 'tanh']),
+
+    csh.CategoricalHyperparameter('use_dropout', [True, False]),
+    csh.UniformFloatHyperparameter('dropout_rate_input', lower=0.1, upper=0.9, default_value=0.5),
+    csh.UniformFloatHyperparameter('dropout_rate_encoder', lower=0.1, upper=0.9, default_value=0.5),
+    csh.UniformFloatHyperparameter('dropout_rate_decoder', lower=0.1, upper=0.9, default_value=0.5),
+
+    csh.CategoricalHyperparameter('activity_regularizer', ['l1', 'none']),
+    csh.UniformFloatHyperparameter('activity_regularizer_factor', lower=0.0001, upper=0.1, default_value=0.01),
+
+    csh.UniformFloatHyperparameter('learning_rate', lower=1e-6, upper=1e-1, default_value=1e-2),
     csh.CategoricalHyperparameter('loss', ['mse', 'binary_crossentropy']),
+
+    csh.UniformFloatHyperparameter('sgd_momentum', lower=0.0, upper=0.99, default_value=0.9),
+    csh.CategoricalHyperparameter('optimizer', ['adam', 'sgd']),
 ])
 
-cs_sgd_momentum = csh.UniformFloatHyperparameter('sgd_momentum', lower=0.0, upper=0.99, default_value=0.9)
-cs_optimizer = csh.CategoricalHyperparameter('optimizer', ['adam', 'sgd'])
-
-configuration_space.add_hyperparameters([cs_optimizer, cs_sgd_momentum])
-configuration_space.add_condition(cs.EqualsCondition(cs_sgd_momentum, cs_optimizer, 'sgd'))
-
+# Conditions
+config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('sgd_momentum'), config_space.get_hyperparameter('optimizer'), 'sgd'))
+config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('dropout_rate_input'), config_space.get_hyperparameter('use_dropout'), True))
+config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('dropout_rate_encoder'), config_space.get_hyperparameter('use_dropout'), True))
+config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('dropout_rate_decoder'), config_space.get_hyperparameter('use_dropout'), True))
+config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('activity_regularizer_factor'), config_space.get_hyperparameter('activity_regularizer'), 'l1'))
+# config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('activity_regularizer_factor'), config_space.get_hyperparameter('activity_regularizer'), 'l2'))
 
 if __name__ == '__main__':
     experiment = Experiment(auto_datetime_directory=True)
     experiment.log('config/config', config)
     experiment.log('config/run_configs', run_configs)
-    experiment.log('config/configuration_space', str(configuration_space))
+    experiment.log('config/configuration_space', str(config_space))
 
     def run_callable(run_config: dict):
         experiment.print('Loading data')
@@ -78,21 +96,25 @@ if __name__ == '__main__':
         experiment.print('Initializing optimizer')
         optimizer = create_optimizer(
             run_config['optimizer'],
-            configuration_space=configuration_space,
+            configuration_space=config_space,
             model=KerasModel(
                 create_model_function=create_deep_feed_forward_autoencoder,
                 evaluation_function=load_from_module(run_config['evaluation_function']),
             ),
             x=x_train,
-            max_iterations=10,
-            min_budget=5,
-            max_budget=5,
+            max_iterations=100,
+            min_budget=10,
+            max_budget=10,
             run_id=experiment.run_id,
             validation_split=config['validation_split'],
         )
 
         experiment.print('Optimizing')
-        optimization_result = optimizer.optimize()
+        try:
+            optimization_result = optimizer.optimize()
+        except:
+            optimization_result = OptimizationResult(optimizer.evaluation_result_aggregator.get_evaluation_results())
+            experiment.log('search/error', traceback.format_exc())
 
         experiment.print('Logging optimization results')
         experiment.log_optimization_result(optimization_result)
