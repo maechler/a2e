@@ -141,7 +141,7 @@ class Experiment:
 
     def log_optimization_result(self, optimization_result: OptimizationResult):
         evaluation_results = optimization_result.evaluation_results
-        evaluation_results_without_outliers = evaluation_results[((evaluation_results['cost'] - evaluation_results['cost'].median()) / evaluation_results['cost'].std()).abs() < 3]
+        evaluation_results_without_outliers = evaluation_results[((evaluation_results['cost'] - evaluation_results['cost'].median()) / evaluation_results['cost'].mad()).abs() < 3]
 
         self.log('search/history.csv', evaluation_results, mode='w')
         self.log('search/best_configuration', optimization_result.best_configuration())
