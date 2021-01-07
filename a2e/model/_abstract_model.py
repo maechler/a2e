@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
+from functools import partial
+
 from a2e.evaluation import EvaluationResult
+from a2e.processing.normalization import min_max_scale, std_scale
 
 
 class AbstractModel(ABC):
@@ -9,11 +12,18 @@ class AbstractModel(ABC):
 
     def pre_process(self, config, *args):
         if '_pre_processing' in config:
-            pre_processing_function = config['_pre_processing']
+            pre_processing = config['_pre_processing']
 
-            return list(map(pre_processing_function, args))
-        else:
-            return args
+            if pre_processing == 'min_max_scale':
+                return list(map(min_max_scale, args))
+            elif pre_processing == 'min_max_scale_per_sample':
+                return list(map(partial(min_max_scale, fit_mode='per_sample'), args))
+            elif pre_processing == 'std_scale':
+                return list(map(std_scale, args))
+            elif pre_processing == 'std_scale_per_sample':
+                return list(map(partial(std_scale, fit_mode='per_sample'), args))
+
+        return args
 
     def load_config(self, config: dict = None, **kwargs):
         raise NotImplementedError
