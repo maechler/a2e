@@ -55,3 +55,25 @@ def reconstruction_error_vs_compression_cost(config, y_true, y_pred, model: Mode
             'reconstruction_error': reconstruction_error,
         }
     )
+
+
+def reconstruction_error_vs_regularized_compression_cost(config, y_true, y_pred, model: Model, history: dict, **kwargs) -> EvaluationResult:
+    compression = compute_model_compression(model)
+    reconstruction_error = median(compute_reconstruction_error(y_true, y_pred))
+
+    if 'activity_regularizer_factor' in config:
+        regularization_factor = config['activity_regularizer_factor']
+        cost = reconstruction_error / (compression * regularization_factor)
+    else:
+        regularization_factor = 0
+        cost = reconstruction_error / compression
+
+    return EvaluationResult(
+        cost=cost,
+        config=config,
+        info={
+            'compression': compression,
+            'reconstruction_error': reconstruction_error,
+            'regularization_factor': regularization_factor,
+        }
+    )
