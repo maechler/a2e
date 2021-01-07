@@ -151,10 +151,8 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
     data_frame, windows: DataFrame, dict
         A data_frame indexed by timestamp and a dictionary containing data set windows for `train`, `test`, `test_healthy` and `test_anomalous`
     """
-    if a2e_data_path is None:
-        a2e_data_path = 'https://github.com/maechler/a2e-data/raw/master/data/'
 
-    if not a2e_data_path.startswith('http') and not a2e_data_path.startswith('file://'):
+    if a2e_data_path is not None and not a2e_data_path.startswith('http') and not a2e_data_path.startswith('file://'):
         if os.path.isabs(a2e_data_path):
             a2e_data_path = 'file://' + os.path.abspath(a2e_data_path)
         else:
@@ -164,6 +162,9 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
                 absolute_data_path = f'/{absolute_data_path}'.replace('\\', '/')
 
             a2e_data_path = 'file://' + absolute_data_path
+
+    if not os.path.isdir(a2e_data_path):
+        a2e_data_path = 'https://github.com/maechler/a2e-data/raw/master/data/'
 
     if cache_dir is None:
         cache_dir = os.path.join(Path.home(), '.a2e')
