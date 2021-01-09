@@ -1,4 +1,3 @@
-from statistics import median
 import numpy as np
 from a2e.evaluation import EvaluationResult
 from a2e.processing.health import compute_health_score
@@ -7,7 +6,7 @@ from a2e.processing.stats import compute_reconstruction_error
 
 def reconstruction_error_cost(config, y_true, y_pred, **kwargs) -> EvaluationResult:
     reconstruction_errors = compute_reconstruction_error(y_true, y_pred)
-    cost = median(reconstruction_errors)
+    cost = np.average(reconstruction_errors)
 
     return EvaluationResult(
         cost=cost,
