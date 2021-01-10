@@ -1,7 +1,8 @@
+from sklearn.preprocessing import MinMaxScaler
 from a2e.experiment import Experiment
 from a2e.datasets.bearing import load_data
-from a2e.models import create_feed_forward_autoencoder
-from a2e.processing.normalization import min_max_scale
+from a2e.model.keras import create_feed_forward_autoencoder
+from a2e.processing.normalization import Scaler
 
 config = {
     'input_size': 1025,
@@ -18,15 +19,15 @@ config = {
          'min_max'
     ],
     'data_sets': [
-         '400rpm',
+         # '400rpm',
          '800rpm',
          '800rpm_gradual',
-         '1200rpm',
-         'variable_rpm'
+         # '1200rpm',
+         # 'variable_rpm'
     ],
     'fit_modes': [
          'per_feature',
-         'per_sample'
+         # 'per_sample'
     ],
 }
 run_configs = {
@@ -55,7 +56,7 @@ def run_callable(run_config: dict):
     labels = bearing_dataset.as_dict(column=config['data_column'], modifier=lambda x: x[x.rpm > 0], labels_only=True)
 
     if run_config['scaling'] == 'min_max':
-        train_samples = min_max_scale(data_frames['train'].to_numpy(), fit_mode=run_config['fit_mode'])
+        train_samples = Scaler(MinMaxScaler, fit_mode=run_config['fit_mode']).fit_transform(data_frames['train'].to_numpy())
     else:
         train_samples = data_frames['train'].to_numpy()
 
@@ -79,7 +80,7 @@ def run_callable(run_config: dict):
         model=best_model,
         data_frames=data_frames,
         labels=labels,
-        pre_processing=lambda data_frame: min_max_scale(data_frame.to_numpy(), fit_mode=run_config['fit_mode']) if run_config['scaling'] == 'min_max' else data_frame.to_numpy(),
+        pre_processing=lambda data_frame: Scaler(MinMaxScaler, fit_mode=run_config['fit_mode']).fit_transform(data_frame.to_numpy()) if run_config['scaling'] == 'min_max' else data_frame.to_numpy(),
         has_multiple_features=True,
     )
 
