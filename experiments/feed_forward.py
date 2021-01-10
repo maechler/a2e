@@ -1,15 +1,16 @@
 from pandas import DataFrame
+from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras import regularizers
 from a2e.experiment import Experiment
 from a2e.datasets.bearing import load_data
-from a2e.models import create_feed_forward_autoencoder
-from a2e.processing.normalization import min_max_scale
+from a2e.model.keras import create_feed_forward_autoencoder
+from a2e.processing.normalization import Scaler
 from a2e.utility import build_samples
 
 config = {
  'input_size': 32,
  'encoding_size': 16,
- 'epochs': 5,
+ 'epochs': 15,
  'shuffle': True,
  'validation_split': 0.1,
  'fit_modes': ['per_feature', 'per_sample', 'train'],
@@ -36,14 +37,15 @@ def run_callable(run_config: dict):
         if run_config['fit_mode'] == 'train':
             return train_scaler.transform(samples)
         else:
-            return min_max_scale(samples, fit_mode=run_config['fit_mode'])
+            return Scaler(MinMaxScaler, fit_mode=run_config['fit_mode']).fit_transform(samples)
 
     experiment.print('Loading data')
     bearing_dataset = load_data(run_config['data_set'])
     data_frames = bearing_dataset.as_dict(column=run_config['data_column'])
     train_samples = build_samples(data_frames['train'].to_numpy().flatten(), config['input_size'])
     fit_mode = 'per_feature' if run_config['fit_mode'] == 'train' else run_config['fit_mode']
-    train_samples, train_scaler = min_max_scale(train_samples, fit_mode=fit_mode, return_scaler=True)
+    train_scaler = Scaler(MinMaxScaler, fit_mode=fit_mode)
+    train_samples = train_scaler.fit_transform(train_samples)
 
     experiment.print('Fitting model')
     history = model.fit(
