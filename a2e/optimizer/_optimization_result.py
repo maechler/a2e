@@ -12,13 +12,13 @@ class OptimizationResult:
         for evaluation_result in evaluation_results:
             self.evaluation_results_by_id[evaluation_result.id] = evaluation_result
 
-    def best_configuration(self) -> dict:
-        return self.configuration_by_percentile_rank(1.0)
+    def best_config(self) -> dict:
+        return self.config_by_percentile_rank(1.0)
 
     def get_evaluation_result_by_id(self, evaluation_result_id) -> EvaluationResult:
         return self.evaluation_results_by_id[evaluation_result_id]
 
-    def configuration_by_percentile_rank(self, percentile_rank: float = 1.0) -> dict:
+    def config_by_percentile_rank(self, percentile_rank: float = 1.0) -> dict:
         if percentile_rank < 0.0 or percentile_rank > 1.0:
             raise ValueError('Parameter percentile_rank must be within 0.0 and 1.0')
 

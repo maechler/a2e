@@ -144,9 +144,9 @@ class Experiment:
         evaluation_results_without_outliers = evaluation_results[((evaluation_results['cost'] - evaluation_results['cost'].median()) / evaluation_results['cost'].mad()).abs() < 3]
 
         self.log('search/history.csv', evaluation_results, mode='w')
-        self.log('search/best_configuration', optimization_result.best_configuration())
-        self.log('search/average_configuration', optimization_result.configuration_by_percentile_rank(0.5))
-        self.log('search/worst_configuration', optimization_result.configuration_by_percentile_rank(0.0))
+        self.log('search/best_configuration', optimization_result.best_config())
+        self.log('search/average_configuration', optimization_result.config_by_percentile_rank(0.5))
+        self.log('search/worst_configuration', optimization_result.config_by_percentile_rank(0.0))
 
         self.plot('search/best_model_id', y=evaluation_results['best_evaluation_id'], xlabel='iteration', ylabel='best evaluation ID')
 

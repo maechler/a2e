@@ -13,7 +13,7 @@ from a2e.model import AbstractModel
 class AbstractSMACOptimizer(AbstractOptimizer):
     def __init__(
         self,
-        configuration_space: ConfigSpace,
+        config_space: ConfigSpace,
         model: AbstractModel,
         x,
         y=None,
@@ -28,7 +28,7 @@ class AbstractSMACOptimizer(AbstractOptimizer):
         runner_kwargs: Optional[Dict] = None,
         optimizer_kwargs: Optional[Dict] = None,
     ):
-        super().__init__(configuration_space, model, x, y, max_iterations, min_budget, max_budget, eta, validation_split, validation_split_shuffle, run_id)
+        super().__init__(config_space, model, x, y, max_iterations, min_budget, max_budget, eta, validation_split, validation_split_shuffle, run_id)
 
         scenario_kwargs = scenario_kwargs if scenario_kwargs is not None else {}
         runner_kwargs = runner_kwargs if runner_kwargs is not None else {}
@@ -38,7 +38,7 @@ class AbstractSMACOptimizer(AbstractOptimizer):
         self.scenario = Scenario({
             'run_obj': 'quality',
             'runcount-limit': self.max_iterations,
-            'cs': self.configuration_space,
+            'cs': self.config_space,
             'deterministic': 'true',
             'output_dir': self.temp_dir,
             **scenario_kwargs,

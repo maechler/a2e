@@ -9,7 +9,7 @@ class RandomOptimizer(AbstractHpbandsterOptimizer):
         self.min_budget = self.max_budget
 
         return self.get_optimizer_class()(**({
-            'configspace': self.configuration_space,
+            'configspace': self.config_space,
             'run_id': self.run_id,
             'min_budget': self.min_budget,
             'max_budget': self.max_budget,

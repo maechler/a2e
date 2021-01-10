@@ -11,7 +11,7 @@ from a2e.optimizer.hpbandster import ModelWorker
 class AbstractHpbandsterOptimizer(AbstractOptimizer):
     def __init__(
         self,
-        configuration_space: ConfigSpace,
+        config_space: ConfigSpace,
         model: AbstractModel,
         x,
         y=None,
@@ -27,7 +27,7 @@ class AbstractHpbandsterOptimizer(AbstractOptimizer):
         worker_kwargs: Optional[Dict] = None,
         optimizer_kwargs: Optional[Dict] = None,
     ):
-        super().__init__(configuration_space, model, x, y, max_iterations, min_budget, max_budget, eta, validation_split, validation_split_shuffle, run_id)
+        super().__init__(config_space, model, x, y, max_iterations, min_budget, max_budget, eta, validation_split, validation_split_shuffle, run_id)
 
         self.worker_kwargs = worker_kwargs if worker_kwargs is not None else {}
         self.optimizer_kwargs = optimizer_kwargs if optimizer_kwargs is not None else {}
@@ -55,7 +55,7 @@ class AbstractHpbandsterOptimizer(AbstractOptimizer):
 
     def create_optimizer(self) -> Master:
         return self.get_optimizer_class()(**({
-            'configspace': self.configuration_space,
+            'configspace': self.config_space,
             'run_id': self.run_id,
             'min_budget': self.min_budget,
             'max_budget': self.max_budget,
