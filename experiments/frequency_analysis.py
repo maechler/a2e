@@ -1,6 +1,7 @@
 from numpy import percentile
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
+from a2e.processing.stats import mad
 from a2e.utility import z_score as compute_z_score, compute_classification_metrics, compute_roc
 
 config = {
@@ -55,15 +56,15 @@ def run_callable(run_config: dict):
 
     for i, (defect_type, defect_frequency_order) in enumerate(config['defect_frequency_orders'].items(), 0):
         defect_frequency = int(defect_frequency_order * shaft_frequency)
-        train_means = train.iloc[:, defect_frequency - bandwidth:defect_frequency + bandwidth].mean(axis=1)
-        train_means_mean = train_means.mean()
-        train_means_std = train_means.std()
-        train_z_scores = list(map(lambda x: compute_z_score(x, train_means_mean, train_means_std), train_means))
+        train_means = train.iloc[:, defect_frequency - bandwidth:defect_frequency + bandwidth].median(axis=1)
+        train_means_median = train_means.median()
+        train_means_mad = mad(train_means)
+        train_z_scores = list(map(lambda x: compute_z_score(x, train_means_median, train_means_mad), train_means))
 
         defect_frequencies.append({
             'frequency': defect_frequency,
-            'train_mean': train_means_mean,
-            'train_std': train_means_std,
+            'train_median': train_means_median,
+            'train_mad': train_means_mad,
             'train_z_scores': train_z_scores,
         })
 
@@ -94,7 +95,7 @@ def run_callable(run_config: dict):
         for defect_frequency in defect_frequencies:
             zscore_threshold = config['zscore_threshold'] if 'zscore_threshold' in config else percentile(defect_frequency['train_z_scores'], config['zscore_threshold_percentile'])
             row_mean = row.iloc[defect_frequency['frequency'] - bandwidth:defect_frequency['frequency'] + bandwidth].mean()
-            z_score = compute_z_score(row_mean, defect_frequency['train_mean'], defect_frequency['train_std'])
+            z_score = compute_z_score(row_mean, defect_frequency['train_median'], defect_frequency['train_mad'])
             is_anomaly = is_anomaly or (z_score > zscore_threshold)
             largest_zscore = largest_zscore if largest_zscore > z_score else z_score
 
