@@ -86,7 +86,7 @@ def create_deep_feed_forward_autoencoder(
     encoding_layer_dimensions = []
 
     for i in range(number_of_encoding_layers):
-        encoding_layer_dimensions.append(int(math.pow(compression_per_layer, i+1) * input_dimension))
+        encoding_layer_dimensions.append(int(math.pow(1 - compression_per_layer, i+1) * input_dimension))
 
     # encoding
     for i, layer_dimension in enumerate(encoding_layer_dimensions):
@@ -95,7 +95,7 @@ def create_deep_feed_forward_autoencoder(
         if use_dropout:
             layer = Dropout(dropout_rate_encoder)(layer)
 
-    encoding_layer_size = int(math.pow(compression_per_layer, number_of_encoding_layers+1) * input_dimension)
+    encoding_layer_size = int(math.pow(1 - compression_per_layer, number_of_encoding_layers+1) * input_dimension)
     encoded = Dense(encoding_layer_size, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)
     layer = encoded
 
