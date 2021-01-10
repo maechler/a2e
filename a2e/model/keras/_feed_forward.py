@@ -57,6 +57,8 @@ def create_deep_feed_forward_autoencoder(
     activity_regularizer=None,
     activity_regularizer_factor=0.01,
     learning_rate=None,
+    use_learning_rate_decay=False,
+    learning_rate_decay_factor=10,
     sgd_momentum=None,
     use_dropout=False,
     dropout_rate_input=0.2,
@@ -108,10 +110,15 @@ def create_deep_feed_forward_autoencoder(
 
     model = Model(input_layer, output_layer, name='a2e_deep_feed_forward')
 
+    if use_learning_rate_decay:
+        decay = learning_rate / (kwargs['budget'] if 'budget' in kwargs else learning_rate_decay_factor)
+    else:
+        decay = 0
+
     if optimizer == 'adam':
-        optimizer = Adam(learning_rate=learning_rate)
+        optimizer = Adam(learning_rate=learning_rate, decay=decay)
     elif optimizer == 'sgd':
-        optimizer = SGD(learning_rate=learning_rate, momentum=sgd_momentum)
+        optimizer = SGD(learning_rate=learning_rate, momentum=sgd_momentum, decay=decay)
 
     model.compile(optimizer=optimizer, loss=loss)
 
