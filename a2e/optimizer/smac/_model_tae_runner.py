@@ -20,8 +20,8 @@ class ModelTaeRunner:
         self.y_valid = y_valid
 
     def __call__(self, config, budget, *args, **kwargs):
+        self.model.load_config(dict(config), budget=budget, **kwargs)
         evaluation_result = self.model.evaluate(
-            dict(config),
             self.x_train,
             self.y_train,
             self.x_valid,

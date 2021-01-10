@@ -15,7 +15,7 @@ from a2e.utility import synchronized
 class AbstractOptimizer(ABC):
     def __init__(
         self,
-        configuration_space: ConfigSpace,
+        config_space: ConfigSpace,
         model: AbstractModel,
         x,
         y=None,
@@ -27,7 +27,7 @@ class AbstractOptimizer(ABC):
         validation_split_shuffle: bool = True,
         run_id: str = None,
     ):
-        self.configuration_space = configuration_space
+        self.config_space = config_space
         self.model = model
         self.max_iterations = max_iterations
         self.min_budget = min_budget
@@ -51,23 +51,24 @@ class AbstractOptimizer(ABC):
     def optimize(self) -> OptimizationResult:
         pass
 
-    def best_configuration(self) -> dict:
-        return self.configuration_by_percentile_rank(1.0)
+    def best_config(self) -> dict:
+        return self.config_by_percentile_rank(1.0)
 
-    def configuration_by_percentile_rank(self, percentile_rank: float = 1.0) -> dict:
+    def config_by_percentile_rank(self, percentile_rank: float = 1.0) -> dict:
         optimization_result = OptimizationResult(self.evaluation_result_aggregator.get_evaluation_results())
 
-        return optimization_result.configuration_by_percentile_rank(percentile_rank)
+        return optimization_result.config_by_percentile_rank(percentile_rank)
 
     def best_model(self) -> AbstractModel:
-        self.model.load_config(self.best_configuration())
+        self.model.load_config(self.best_config())
 
         return self.model
 
     def refit_by_percentile_rank(self, percentile_rank: float = 1.0) -> AbstractModel:
-        configuration = self.configuration_by_percentile_rank(percentile_rank)
+        config = self.config_by_percentile_rank(percentile_rank)
 
-        self.model.fit(configuration, self.x_train, self.y_train, self.x_valid, self.y_valid, self.max_budget)
+        self.model.load_config(config)
+        self.model.fit(self.x_train, self.y_train, self.x_valid, self.y_valid, self.max_budget)
 
         return self.model
 

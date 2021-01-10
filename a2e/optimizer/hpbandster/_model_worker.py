@@ -31,8 +31,8 @@ class ModelWorker(Worker):
 
     def compute(self, config, budget, working_directory, **kwargs):
         iteration, stage, actual_num_config = kwargs['config_id']
+        self.model.load_config(config, budget=budget, **kwargs)
         evaluation_result = self.model.evaluate(
-            config,
             self.x_train,
             self.y_train,
             self.x_valid,
