@@ -5,7 +5,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 class VoidScaler:
     def fit(self, data):
-        pass
+        return self
 
     def transform(self, data):
         return data
