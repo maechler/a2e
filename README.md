@@ -1,10 +1,48 @@
-# a2e - auto autoencoder
+# a2e - a library to implement auto autoencoders
+
+This library is based on [Keras](https://keras.io/), [SMAC](https://github.com/automl/SMAC3/) and [HpBandSter](https://github.com/automl/HpBandSter/). 
+It implements AutoML methods that are designed, but not limited to auto tune autoencoder architectures.
+
+## Features
+
+- Supporting [SMAC](https://github.com/automl/SMAC3/) and [HpBandSter](https://github.com/automl/HpBandSter/) optimizers:
+    - Bayesian Optimization using Random Forrest
+    - Bayesian Optimization using Gaussian Process
+    - Hyperband
+    - Bayesian Optimization with Hyperband
+    - Random 
+- Providing various cost functions
+- Providing Keras models for vanilla, convolutional and recurrent autoencoders
+- Providing experiment logging including git repository state, models (including weights and activations plots), predictions, samples, metrics
+
+## Dataset
+
+All experiments are implemented using datasets from [a2e-data](https://github.com/maechler/a2e-data). 
+The datasets are automatically downloaded and cached in `~/.a2e/`.
+
+## System Requirements
+
+- Python 3.8
+- [SWIG](http://www.swig.org/) (see [SMAC3](https://automl.github.io/SMAC3/master/installation.html))
+    - macOS: `brew install swig`
+    - Linux: `sudo apt-get install swig`
+    - Windows: 
+        - Download `swigwin-4.*.*` from http://www.swig.org/download.html
+        - Extract the folder and add it to the `PATH` environment variable
+- [graphviz](https://graphviz.org/)
+    - macOS: `brew install graphviz`
+    - Linux: `sudo apt-get install graphviz`
+    - Windows: https://graphviz.org/download/
+- On Windows you will also need to install [WSL 2](https://docs.microsoft.com/en-us/windows/wsl/install-win10). 
+With a little bit of luck you might be able to run the `SMAC` optimizers, else you will have to fallback to the `HpBandSter` implementations.
+
+
 
 ## Development
 
 ### Setup virtualenv
 
-- MAC
+- Mac / Linux
 ```
 pip install virtualenv;
 python -m virtualenv env;
