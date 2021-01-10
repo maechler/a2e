@@ -17,7 +17,7 @@ config = {
 
 run_configs = {
     'data_set': [
-         #'400rpm',
+         '400rpm',
          '800rpm',
          '800rpm_gradual',
          #'1200rpm',
