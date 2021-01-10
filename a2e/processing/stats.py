@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def mad(data: list):
+def mad(data):
     data = np.array(data)
     median = np.median(data)
     deviations = data - median
