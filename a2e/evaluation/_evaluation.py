@@ -6,7 +6,7 @@ from a2e.processing.stats import compute_reconstruction_error
 
 def reconstruction_error_cost(config, y_true, y_pred, **kwargs) -> EvaluationResult:
     reconstruction_errors = compute_reconstruction_error(y_true, y_pred)
-    cost = np.average(reconstruction_errors)
+    cost = np.sqrt(np.average(np.power(reconstruction_errors, 2)))
 
     return EvaluationResult(
         cost=cost,

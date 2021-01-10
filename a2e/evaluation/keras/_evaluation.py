@@ -1,8 +1,6 @@
-from statistics import median
 from tensorflow.python.keras.models import Model
-from a2e.evaluation import EvaluationResult
+from a2e.evaluation import EvaluationResult, reconstruction_error_cost
 from a2e.model.keras import compute_model_compression
-from a2e.processing.stats import compute_reconstruction_error
 
 
 def loss_cost(config, y_true, y_pred, model: Model, history: dict, **kwargs) -> EvaluationResult:
@@ -44,7 +42,7 @@ def val_loss_vs_compression_cost(config, y_true, y_pred, model: Model, history: 
 
 def reconstruction_error_vs_compression_cost(config, y_true, y_pred, model: Model, history: dict, **kwargs) -> EvaluationResult:
     compression = compute_model_compression(model)
-    reconstruction_error = median(compute_reconstruction_error(y_true, y_pred))
+    reconstruction_error = reconstruction_error_cost(config, y_true, y_pred, **kwargs).cost
     cost = reconstruction_error / compression
 
     return EvaluationResult(
@@ -59,7 +57,7 @@ def reconstruction_error_vs_compression_cost(config, y_true, y_pred, model: Mode
 
 def reconstruction_error_vs_regularized_compression_cost(config, y_true, y_pred, model: Model, history: dict, **kwargs) -> EvaluationResult:
     compression = compute_model_compression(model)
-    reconstruction_error = median(compute_reconstruction_error(y_true, y_pred))
+    reconstruction_error = reconstruction_error_cost(config, y_true, y_pred, **kwargs).cost
 
     if 'activity_regularizer_factor' in config:
         regularization_factor = config['activity_regularizer_factor']
