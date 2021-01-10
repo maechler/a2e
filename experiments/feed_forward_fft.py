@@ -19,7 +19,7 @@ config = {
          'min_max'
     ],
     'data_sets': [
-         # '400rpm',
+         '400rpm',
          '800rpm',
          '800rpm_gradual',
          # '1200rpm',
