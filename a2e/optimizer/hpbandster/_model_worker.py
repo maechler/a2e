@@ -1,6 +1,7 @@
 from hpbandster.core.worker import Worker
 from a2e.model import AbstractModel
 from a2e.optimizer import EvaluationResultAggregator
+from a2e.utility import inf_nan_to_float_max
 
 
 class ModelWorker(Worker):
@@ -47,6 +48,6 @@ class ModelWorker(Worker):
         self.evaluation_result_aggregator.add_evaluation_result(evaluation_result)
 
         return {
-            'loss': evaluation_result.cost,
+            'loss': inf_nan_to_float_max(evaluation_result.cost),
             'info': evaluation_result.info,
         }

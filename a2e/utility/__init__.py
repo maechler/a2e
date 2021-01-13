@@ -10,6 +10,7 @@ from ._utility import synchronized
 from ._utility import z_score
 from ._utility import compute_classification_metrics
 from ._utility import compute_roc
+from ._utility import inf_nan_to_float_max
 
 __all__ = [
     'timestamp_to_date_time',
@@ -20,4 +21,5 @@ __all__ = [
     'z_score',
     'compute_classification_metrics',
     'compute_roc',
+    'inf_nan_to_float_max',
 ]

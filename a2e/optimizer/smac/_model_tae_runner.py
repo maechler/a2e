@@ -1,5 +1,6 @@
 from a2e.optimizer._abstract_optimizer import EvaluationResultAggregator
 from a2e.model import AbstractModel
+from a2e.utility import inf_nan_to_float_max
 
 
 class ModelTaeRunner:
@@ -31,4 +32,4 @@ class ModelTaeRunner:
 
         self.evaluation_result_aggregator.add_evaluation_result(evaluation_result)
 
-        return evaluation_result.cost
+        return inf_nan_to_float_max(evaluation_result.cost)

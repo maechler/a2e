@@ -1,4 +1,6 @@
+import sys
 import importlib
+from math import isnan, isinf
 import numpy as np
 from datetime import datetime, timezone, tzinfo
 from itertools import product
@@ -89,3 +91,10 @@ def compute_classification_metrics(y_true, y_pred, average='binary', target_form
             'false_positives': confusion_matrix_results[0][1],
         },
     }
+
+
+def inf_nan_to_float_max(number: float) -> float:
+    if isnan(number) or isinf(number):
+        return sys.float_info.max
+
+    return number
