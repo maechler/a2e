@@ -116,6 +116,7 @@ def plot(
     show_legend=True,
     create_figure=True,
     close=True,
+    plot_type='plot',
 ):
     if create_figure:
         fig, ax = plt.subplots()
@@ -136,7 +137,10 @@ def plot(
 
         ax.axvline(x=vline['x'], color=vline['color'], label=vline['label'], linestyle=linestyle)
 
-    ax.plot(x, y, color=color, label=label)
+    if plot_type == 'scatter':
+        ax.scatter(x, y)
+    else:
+        ax.plot(x, y, color=color, label=label)
 
     if xlabel is not None:
         ax.set_xlabel(xlabel, labelpad=15)
