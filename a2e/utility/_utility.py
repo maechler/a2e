@@ -1,11 +1,13 @@
 import sys
 import importlib
-from math import isnan, isinf
 import numpy as np
+from math import isnan, isinf
+from statistics import median
 from datetime import datetime, timezone, tzinfo
 from itertools import product
-from typing import Callable
+from typing import Callable, Union
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, matthews_corrcoef, confusion_matrix, roc_curve, roc_auc_score
+from a2e.processing.stats import mad
 
 
 def timestamp_to_date_time(timestamp: float, tz: tzinfo = timezone.utc) -> datetime:
@@ -56,8 +58,16 @@ def synchronized(method: Callable):
     return synchronized_method
 
 
-def z_score(value, mean, standard_deviation):
-    return abs(value - mean) / standard_deviation
+def z_score(value: Union[list, np.array, float], given_median: Union[None, float] = None, given_mad: Union[None, float] = None):
+    if isinstance(value, (list, np.ndarray)):
+        if given_median is None:
+            given_median = median(value)
+        if given_mad is None:
+            given_mad = mad(value)
+
+        return list(map(lambda x: z_score(x, given_median, given_mad), value))
+    else:
+        return abs(value - given_median) / given_mad
 
 
 def compute_roc(y_true, y_pred, target_format='{:.4f}'):
