@@ -151,6 +151,7 @@ class Experiment:
         self.log('search/worst_configuration', optimization_result.config_by_percentile_rank(0.0))
 
         self.plot('search/best_model_id', y=evaluation_results['best_evaluation_id'], xlabel='iteration', ylabel='best evaluation ID')
+        self.plot('search/best_cost', y=evaluation_results['best_cost'], xlabel='iteration', ylabel='best cost')
 
         self.plot('search/cost', y=evaluation_results['cost'], xlabel='iteration', ylabel='cost')
         evaluation_results.plot(subplots=True, figsize=(10, 100))

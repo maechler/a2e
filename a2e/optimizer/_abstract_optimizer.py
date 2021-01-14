@@ -96,6 +96,7 @@ class EvaluationResultAggregator:
             self._state['best_cost'] = evaluation_result.cost
 
         evaluation_result.add_info('best_evaluation_id', self._state['best_evaluation_id'])
+        evaluation_result.add_info('best_cost', self._state['best_cost'])
 
         self._state['evaluation_results'].append(evaluation_result)
 
