@@ -108,6 +108,8 @@ def plot(
     title=None,
     ylim=None,
     xlim=None,
+    yticks=None,
+    xticks=None,
     vlines=[],
     time_formatting=False,
     out_path=None,
@@ -128,6 +130,12 @@ def plot(
         ax.xaxis.set_major_locator(mdates.HourLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax.xaxis.set_minor_locator(mdates.MinuteLocator(30))
+
+    if xticks is not None:
+        ax.set_xticks(xticks)
+
+    if yticks is not None:
+        ax.set_yticks(yticks)
 
     if x is None:
         x = range(1, len(y) + 1)
