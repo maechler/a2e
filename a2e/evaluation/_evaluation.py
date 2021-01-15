@@ -2,11 +2,27 @@ import numpy as np
 from a2e.evaluation import EvaluationResult
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error
+from a2e.utility import z_score
 
 
 def reconstruction_error_cost(config, y_true, y_pred, **kwargs) -> EvaluationResult:
     reconstruction_errors = compute_reconstruction_error(y_true, y_pred)
     cost = np.sqrt(np.average(np.power(reconstruction_errors, 2)))
+
+    return EvaluationResult(
+        cost=cost,
+        config=config,
+    )
+
+
+def uniform_reconstruction_error_cost(config, y_true, y_pred, **kwargs) -> EvaluationResult:
+    reconstruction_errors = compute_reconstruction_error(y_true, y_pred)
+    reconstruction_error_cost = np.sqrt(np.average(np.power(reconstruction_errors, 2)))
+
+    reconstruction_error_z_scores = z_score(reconstruction_errors)
+    reconstruction_error_z_score_cost = np.sqrt(np.average(np.power(reconstruction_error_z_scores, 2)))
+
+    cost = reconstruction_error_cost * reconstruction_error_z_score_cost
 
     return EvaluationResult(
         cost=cost,
