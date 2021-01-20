@@ -27,6 +27,10 @@ def uniform_reconstruction_error_cost(config, y_true, y_pred, **kwargs) -> Evalu
     return EvaluationResult(
         cost=cost,
         config=config,
+        info={
+            'reconstruction_error_cost': reconstruction_error_cost,
+            'reconstruction_error_z_score_cost': reconstruction_error_z_score_cost,
+        }
     )
 
 
