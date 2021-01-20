@@ -163,7 +163,7 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
 
             a2e_data_path = 'file://' + absolute_data_path
 
-    if not os.path.isdir(a2e_data_path):
+    if not os.path.isdir(a2e_data_path.replace('file://', '')):
         a2e_data_path = 'https://github.com/maechler/a2e-data/raw/master/data/'
 
     if cache_dir is None:
