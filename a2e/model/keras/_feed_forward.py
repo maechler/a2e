@@ -199,9 +199,9 @@ def create_deep_easing_feed_forward_autoencoder(
         decay = 0
 
     if optimizer == 'adam':
-        optimizer = Adam(learning_rate=learning_rate, decay=decay)
+        optimizer = Adam(learning_rate=0.001 if learning_rate is None else learning_rate, decay=decay)
     elif optimizer == 'sgd':
-        optimizer = SGD(learning_rate=learning_rate, momentum=sgd_momentum, decay=decay)
+        optimizer = SGD(learning_rate=0.01 if learning_rate is None else learning_rate, momentum=sgd_momentum, decay=decay)
 
     model.compile(optimizer=optimizer, loss=loss)
 
