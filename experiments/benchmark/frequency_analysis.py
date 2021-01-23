@@ -30,6 +30,7 @@ config = {
 
 run_configs = [
     {'data_set': '400rpm', 'rpm': 400},
+    {'data_set': '400rpm_gradual', 'rpm': 400},
     {'data_set': '800rpm', 'rpm': 800},
     {'data_set': '800rpm_gradual', 'rpm': 800},
     {'data_set': '1200rpm', 'rpm': 1200},
