@@ -72,13 +72,13 @@ class Scaler:
 def create_scaler(scaler: str) -> Scaler:
     if scaler in ['none', 'void']:
         return Scaler(VoidScaler)
-    if scaler == 'min_max_scale':
+    if scaler == 'min_max':
         return Scaler(MinMaxScaler, fit_mode='per_feature')
-    elif scaler == 'min_max_scale_per_sample':
+    elif scaler == 'min_max_per_sample':
         return Scaler(MinMaxScaler, fit_mode='per_sample')
-    elif scaler == 'std_scale':
+    elif scaler == 'std':
         return Scaler(StandardScaler, fit_mode='per_feature')
-    elif scaler == 'std_scale_per_sample':
+    elif scaler == 'std_per_sample':
         return Scaler(StandardScaler, fit_mode='per_sample')
     else:
         raise ValueError(f'Invalid scaler "{scaler}" provided.')
