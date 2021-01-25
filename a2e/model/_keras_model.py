@@ -40,8 +40,11 @@ class KerasModel(AbstractModel):
         else:
             self.scaler = create_scaler('void')
 
+        if '_batch_size' in config:
+            self.fit_kwargs['batch_size'] = config['_batch_size']
+
     def evaluate(self, x_train, y_train, x_valid, y_valid, budget=None, **kwargs) -> EvaluationResult:
-        history = self.fit(x_train, y_train, x_valid, y_valid, budget, **self.fit_kwargs)
+        history = self.fit(x_train, y_train, x_valid, y_valid, budget)
         y_valid_pred = self.predict(x_valid)
         evaluation_result = self._evaluation_function(self.loaded_config, y_valid, y_valid_pred, model=self.model, history=history.history)
 
@@ -69,8 +72,9 @@ class KerasModel(AbstractModel):
             y_valid_scaled = None
             x_valid = np.array([])
 
+        # todo batch_size?
         self.scaler.fit(np.concatenate((x_train, x_valid)))
-        history = self.model.fit(x_train_scaled, y_train_scaled, epochs=int(budget), verbose=0, validation_data=(x_valid_scaled, y_valid_scaled), **kwargs)
+        history = self.model.fit(x_train_scaled, y_train_scaled, epochs=int(budget), verbose=0, validation_data=(x_valid_scaled, y_valid_scaled), **self.fit_kwargs, **kwargs)
 
         return history
 
