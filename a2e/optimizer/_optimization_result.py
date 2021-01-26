@@ -27,8 +27,8 @@ class OptimizationResult:
         if num_evaluations == 0:
             raise ValueError('No evaluation results found.')
 
-        sorted_results = self.evaluation_results.sort_values(by=['cost'], ascending=False)
-        target_index = round(percentile_rank * (num_evaluations - 1))
+        sorted_results = self.evaluation_results.dropna(subset=['cost']).sort_values(by=['cost'], ascending=False)
+        target_index = round(percentile_rank * (len(sorted_results) - 1))
         target_id = sorted_results.iloc[target_index]['id']
 
         return self.get_evaluation_result_by_id(target_id).config
