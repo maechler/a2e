@@ -1,5 +1,8 @@
 import numpy as np
+import os
+from tempfile import NamedTemporaryFile
 from typing import Callable, Optional, Dict, Union
+from tensorflow.python.keras.callbacks import ModelCheckpoint
 from tensorflow.python.keras.models import Model
 from a2e.evaluation import EvaluationResult
 from a2e.model import AbstractModel
@@ -13,6 +16,7 @@ class KerasModel(AbstractModel):
         evaluation_function: Callable[..., EvaluationResult],
         fit_kwargs: Optional[Dict] = None,
         config: Optional[Dict] = None,
+        reload_best_weights: bool = True,
     ):
         self._create_model_function = create_model_function
         self._evaluation_function = evaluation_function
@@ -20,6 +24,8 @@ class KerasModel(AbstractModel):
         self.fit_kwargs = fit_kwargs if fit_kwargs is not None else {}
         self.loaded_config = {}
         self.scaler: Union[Scaler, None] = None
+        self.reload_best_weights = reload_best_weights
+        self._best_weights_file: NamedTemporaryFile = None
 
         if config is not None:
             self.load_config(config)
@@ -72,9 +78,25 @@ class KerasModel(AbstractModel):
             y_valid_scaled = None
             x_valid = np.array([])
 
-        # todo batch_size?
-        self.scaler.fit(np.concatenate((x_train, x_valid)))
-        history = self.model.fit(x_train_scaled, y_train_scaled, epochs=int(budget), verbose=0, validation_data=(x_valid_scaled, y_valid_scaled), **self.fit_kwargs, **kwargs)
+        try:
+            if self.reload_best_weights and y_valid is not None:
+                self._best_weights_file = NamedTemporaryFile(delete=False, suffix='.h5')
+
+                if 'callbacks' not in self.fit_kwargs:
+                    self.fit_kwargs['callbacks'] = []
+
+                self.fit_kwargs['callbacks'].append(ModelCheckpoint(self._best_weights_file.name, monitor='val_loss', save_best_only=True))
+
+            self.scaler.fit(np.concatenate((x_train, x_valid)))
+            history = self.model.fit(x_train_scaled, y_train_scaled, epochs=int(budget), verbose=0, validation_data=(x_valid_scaled, y_valid_scaled), **self.fit_kwargs, **kwargs)
+
+            if self.reload_best_weights and y_valid is not None:
+                self.model.load_weights(self._best_weights_file.name)
+        finally:
+            if self._best_weights_file is not None:
+                os.unlink(self._best_weights_file.name)
+                self._best_weights_file.close()
+                self._best_weights_file = None
 
         return history
 
