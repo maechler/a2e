@@ -182,6 +182,10 @@ def create_deep_easing_feed_forward_autoencoder(
     encoded = Dense(latent_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)
     layer = encoded
 
+    if len(encoding_layer_dimensions) > 0:
+        encoding_layer_dimensions.pop()
+        encoding_layer_dimensions.insert(0, input_dimension)
+
     # decoding
     for i, layer_dimension in enumerate(reversed(encoding_layer_dimensions)):
         layer = Dense(layer_dimension, activation=hidden_layer_activations, name=f'hidden_decoding_layer_{i}')(layer)
