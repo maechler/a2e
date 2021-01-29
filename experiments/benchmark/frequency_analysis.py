@@ -57,7 +57,7 @@ def run_callable(run_config: dict):
 
     for i, (defect_type, defect_frequency_order) in enumerate(config['defect_frequency_orders'].items(), 0):
         defect_frequency = defect_frequency_order * shaft_frequency
-        train_means = train.iloc[:, max(int(defect_frequency) - bandwidth, 0):int(defect_frequency) + bandwidth].median(axis=1)
+        train_means = train.iloc[:, max(int(defect_frequency) - bandwidth, 0):int(defect_frequency) + bandwidth].mean(axis=1)
         train_means_median = train_means.median()
         train_means_mad = mad(train_means)
         train_z_scores = list(map(lambda x: compute_z_score(x, train_means_median, train_means_mad), train_means))
