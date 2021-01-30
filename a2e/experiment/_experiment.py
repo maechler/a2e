@@ -11,7 +11,8 @@ import pandas as pd
 import pickle
 import logging
 import matplotlib.pyplot as plt
-from statistics import mean, stdev, median
+import warnings
+from statistics import median
 from itertools import product
 from typing import Callable, Dict, List, Union
 from numpy import percentile
@@ -29,7 +30,6 @@ from a2e.plotter import plot, plot_model_layer_weights, plot_model_layer_activat
 from a2e.processing.health import compute_health_score
 from a2e.processing.stats import compute_reconstruction_error, mad
 from a2e.utility import grid_run, compute_roc, compute_classification_metrics, z_score
-import warnings
 
 warnings.simplefilter(action='ignore', category=Warning)
 
@@ -71,7 +71,7 @@ class Experiment:
         self.print(f'Created new experiment "{self.experiment_id}"')
         self.log('timing.log', f'experiment_start={self.experiment_start}')
         self.log('git/hash', git_hash())
-        self.log('git/diff', git_diff())
+        self.log('git/state.diff', git_diff())
 
         if suppress_warnings:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -83,11 +83,25 @@ class Experiment:
         self.log('timing.log', f'experiment_end={datetime.datetime.now()}')
         self.log('timing.log', f'experiment_duration={datetime.datetime.now() - self.experiment_start}')
 
+    def _add_optional_extension(self, file_name: str, extension: str):
+        if '.' in file_name:
+            return file_name
+        else:
+            return f'{file_name}.{extension}'
+
     def log(self, key: str, value: any, mode: str = 'a', to_pickle=False):
         self.print(f'Logging "{key}"')
 
-        key = key + '.pickle' if to_pickle else key
-        mode = mode + 'b' if to_pickle else mode
+        if to_pickle:
+            key = self._add_optional_extension(key, 'pickle')
+            mode = mode + 'b'
+        elif isinstance(value, dict) or isinstance(value, list):
+            key = self._add_optional_extension(key, 'json')
+        elif isinstance(value, pd.DataFrame):
+            key = self._add_optional_extension(key, 'csv')
+        else:
+            key = self._add_optional_extension(key, 'txt')
+
         out_file_path = self._out_path(key)
 
         with open(out_file_path, mode) as out_file:
@@ -124,7 +138,7 @@ class Experiment:
             if 'val_loss' in history.history:
                 self.plot(f'{log_base_path}/val_loss', y=history.history['val_loss'], xlabel='epoch', ylabel='validation loss')
 
-        self.log(f'{log_base_path}/history.csv', pd.DataFrame.from_dict(history.history))
+        self.log(f'{log_base_path}/history', pd.DataFrame.from_dict(history.history))
 
     def log_keras_model(self, model: Model, key: str = None):
         self.print('Logging model')
@@ -144,7 +158,7 @@ class Experiment:
         evaluation_results = optimization_result.evaluation_results
         evaluation_results_without_outliers = evaluation_results[((evaluation_results['cost'] - evaluation_results['cost'].median()) / mad(evaluation_results['cost'].dropna())).abs() < 3]
 
-        self.log('search/history.csv', evaluation_results, mode='w')
+        self.log('search/history', evaluation_results, mode='w')
         self.log('search/best_configuration', optimization_result.best_config())
         self.log('search/average_configuration', optimization_result.config_by_percentile_rank(0.5))
         self.log('search/worst_10th_configuration', optimization_result.config_by_percentile_rank(0.1))
@@ -247,9 +261,9 @@ class Experiment:
                     self.plot(f'{data_frame_log_path}/health_score/health_score', x=data_frame.index, y=data_frame['health_score'], label='health score', ylim=[0, 1], time_formatting=True, close=False)
                     self.plot(f'{data_frame_log_path}/health_score/health_score_rolling', x=data_frame.index, y=data_frame['health_score'].rolling(window=rolling_window_size).median().fillna(method='backfill'), label='rolling health score', ylim=[0, 1], time_formatting=True, create_figure=False)
 
-                    self.log(f'{data_frame_log_path}/metrics.csv', data_frame[log_metrics])
+                    self.log(f'{data_frame_log_path}/metrics', data_frame[log_metrics])
                 else:
-                    self.log(f'{data_frame_log_path}/metrics.csv', data_frame[['reconstruction_error', 'reconstruction_error_rolling']])
+                    self.log(f'{data_frame_log_path}/metrics', data_frame[['reconstruction_error', 'reconstruction_error_rolling']])
 
                 for sample_index in log_samples:
                     ylim = [0, 1] if all(0.0 <= value <= 1.0 for value in samples_y[sample_index]+reconstruction[sample_index]) else None
@@ -258,7 +272,7 @@ class Experiment:
                     self.plot(f'{sample_log_path}/input', y=samples_y[sample_index], ylim=ylim, label='input', close=False)
                     self.plot(f'{sample_log_path}/reconstruction', y=reconstruction[sample_index], ylim=ylim, label='reconstruction', create_figure=False)
 
-                    self.log(f'{sample_log_path}/data.csv', pd.DataFrame.from_dict({'input': samples_y[sample_index], 'reconstruction': reconstruction[sample_index]}))
+                    self.log(f'{sample_log_path}/data', pd.DataFrame.from_dict({'input': samples_y[sample_index], 'reconstruction': reconstruction[sample_index]}))
 
                     plot_model_layer_activations(model=model if isinstance(model, Model) else model.model, sample=samples_x[sample_index], out_path=self._out_path(f'{sample_log_path}/activations/', is_directory=True))
             except ValueError:
