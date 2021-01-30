@@ -19,9 +19,7 @@ run_configs = {
     'data_set': [
          '400rpm',
          '800rpm',
-         '800rpm_gradual',
-         #'1200rpm',
-         #'variable_rpm'
+         '1200rpm',
     ],
     'optimizer': [
         # 'BayesianGaussianProcessOptimizer',
@@ -33,12 +31,12 @@ run_configs = {
     'evaluation_function': [
         'a2e.evaluation.reconstruction_error_cost',
         'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
-        #'a2e.evaluation.keras.reconstruction_error_vs_regularized_compression_cost',
-        #'a2e.evaluation.keras.loss_cost',
-        #'a2e.evaluation.keras.val_loss_cost',
-        #'a2e.evaluation.keras.val_loss_vs_compression_cost',
-        #'a2e.evaluation.health_score_cost',
-        #'a2e.evaluation.min_health_score_cost',
+        # 'a2e.evaluation.keras.reconstruction_error_vs_regularized_compression_cost',
+        # 'a2e.evaluation.keras.loss_cost',
+        # 'a2e.evaluation.keras.val_loss_cost',
+        # 'a2e.evaluation.keras.val_loss_vs_compression_cost',
+        # 'a2e.evaluation.health_score_cost',
+        # 'a2e.evaluation.min_health_score_cost',
     ],
 }
 
@@ -47,10 +45,10 @@ config_space = cs.ConfigurationSpace(seed=1234)
 config_space.add_hyperparameters([
     csh.CategoricalHyperparameter('_scaler', [
         'none',
-        'min_max_scale',
-        'min_max_scale_per_sample',
-        'std_scale',
-        'std_scale_per_sample',
+        'min_max',
+        'min_max_per_sample',
+        'std',
+        'std_per_sample',
     ]),
 
     csh.Constant('input_dimension', value=1025),
