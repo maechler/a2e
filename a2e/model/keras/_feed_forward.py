@@ -136,35 +136,36 @@ def create_deep_easing_feed_forward_autoencoder(
     optimizer='adam',
     loss='binary_crossentropy',
     activity_regularizer=None,
-    activity_regularizer_factor=0.01,
+    l1_activity_regularizer_factor=0.01,
+    l2_activity_regularizer_factor=0.01,
     learning_rate=None,
-    use_learning_rate_decay=False,
-    learning_rate_decay_factor=10,
+    learning_rate_decay=0,
     sgd_momentum=None,
-    use_dropout=False,
     dropout_rate_input=0,
     dropout_rate_encoder=0,
     dropout_rate_decoder=0,
+    dropout_rate_output=0,
+    dropout_rate_threshold=0.01,
     **kwargs,
 ) -> Model:
     if number_of_hidden_layers % 2 == 0:
         raise ValueError(f'Number of hidden layers must be odd, "{number_of_hidden_layers}" provided.')
 
-    input_layer = Input(shape=(input_dimension,), name='input')
-    layer = input_layer
-
-    if use_dropout:
-        layer = Dropout(dropout_rate_input)(layer)
-
     if activity_regularizer == 'none':
         activity_regularizer = None
     elif activity_regularizer == 'l1':
-        activity_regularizer = regularizers.l1(activity_regularizer_factor)
+        activity_regularizer = regularizers.l1(l1_activity_regularizer_factor)
     elif activity_regularizer == 'l2':
-        activity_regularizer = regularizers.l2(activity_regularizer_factor)
+        activity_regularizer = regularizers.l2(l2_activity_regularizer_factor)
 
     number_of_encoding_layers = int((number_of_hidden_layers - 1) / 2)
     encoding_layer_dimensions = []
+
+    input_layer = Input(shape=(input_dimension,), name='input')
+    layer = input_layer
+
+    if dropout_rate_input > dropout_rate_threshold:
+        layer = Dropout(dropout_rate_input)(layer)
 
     if isinstance(easing, str):
         easing_function = load_from_module(f'a2e.utility.easing.{easing}')
@@ -176,7 +177,7 @@ def create_deep_easing_feed_forward_autoencoder(
     for i, layer_dimension in enumerate(encoding_layer_dimensions):
         layer = Dense(layer_dimension, activation=hidden_layer_activations, name=f'hidden_encoding_layer_{i}')(layer)
 
-        if use_dropout:
+        if dropout_rate_encoder > dropout_rate_threshold:
             layer = Dropout(dropout_rate_encoder)(layer)
 
     encoded = Dense(latent_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)
@@ -190,22 +191,20 @@ def create_deep_easing_feed_forward_autoencoder(
     for i, layer_dimension in enumerate(reversed(encoding_layer_dimensions)):
         layer = Dense(layer_dimension, activation=hidden_layer_activations, name=f'hidden_decoding_layer_{i}')(layer)
 
-        if use_dropout:
+        if dropout_rate_decoder > dropout_rate_threshold:
             layer = Dropout(dropout_rate_decoder)(layer)
+
+    if dropout_rate_output > dropout_rate_threshold:
+        layer = Dropout(dropout_rate_output)(layer)
 
     output_layer = Dense(input_dimension, activation=output_layer_activation, name='output')(layer)
 
     model = Model(input_layer, output_layer, name='a2e_deep_feed_forward')
 
-    if use_learning_rate_decay:
-        decay = learning_rate / (kwargs['budget'] if 'budget' in kwargs else learning_rate_decay_factor)
-    else:
-        decay = 0
-
     if optimizer == 'adam':
-        optimizer = Adam(learning_rate=0.001 if learning_rate is None else learning_rate, decay=decay)
+        optimizer = Adam(learning_rate=0.001 if learning_rate is None else learning_rate, decay=learning_rate_decay)
     elif optimizer == 'sgd':
-        optimizer = SGD(learning_rate=0.01 if learning_rate is None else learning_rate, momentum=sgd_momentum, decay=decay)
+        optimizer = SGD(learning_rate=0.01 if learning_rate is None else learning_rate, momentum=sgd_momentum, decay=learning_rate_decay)
 
     model.compile(optimizer=optimizer, loss=loss)
 
