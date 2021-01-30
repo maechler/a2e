@@ -11,7 +11,7 @@ It implements AutoML methods that are designed, but not limited to auto tune aut
     - Hyperband
     - Bayesian Optimization with Hyperband
     - Random 
-- Providing various cost functions
+- Providing various cost functions focused on autoencoders
 - Providing Keras models for vanilla, convolutional and recurrent autoencoders
 - Providing experiment logging including git repository state, models (including weights and activations plots), predictions, samples, metrics
 
@@ -36,7 +36,7 @@ brew install graphviz
 
 ### Ubuntu 18.04 installation
 
-Please not that the installation of SMAC will most probably fail on Ubuntu 20.04!
+Please note that the installation of SMAC will most probably fail on Ubuntu 20.04, use Ubuntu 18.04 instead!
 
 ```
 sudo apt-get install swig
@@ -46,7 +46,7 @@ sudo apt-get install graphviz
 ### Windows installation
 
 We recommend to use [WSL 2](https://docs.microsoft.com/en-us/windows/wsl/install-win10) and install Ubuntu 18.04 as you will probably not be able to run the SMAC optimizers on Windows. 
-But if you really want to use Windows, you will at least need SWIG and graphviz installed:
+But if you really want to use Windows, you will have to at least install SWIG and graphviz:
 
 - `SWIG`: 
     - Download `swigwin-4.*.*` from http://www.swig.org/download.html
