@@ -43,6 +43,12 @@ sudo apt-get install swig
 sudo apt-get install graphviz
 ```
 
+If you can still not build some dependencies, please make sure you have the correct `python-dev` version installed:
+
+```
+sudo apt install python3.8-dev
+```
+
 ### Windows installation
 
 We recommend to use [WSL 2](https://docs.microsoft.com/en-us/windows/wsl/install-win10) and install Ubuntu 18.04 as you will probably not be able to run the SMAC optimizers on Windows. 
