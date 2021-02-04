@@ -29,13 +29,13 @@ run_configs = {
         'a2e.evaluation.keras.val_loss_cost',
         'a2e.evaluation.reconstruction_error_cost',
         'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
-        'a2e.evaluation.uniform_reconstruction_error_cost',
+        'a2e.evaluation.keras.uniform_reconstruction_error_vs_compression_cost'
     ],
 }
 
 
 if __name__ == '__main__':
-    experiment = Experiment(auto_datetime_directory=False)
+    experiment = Experiment(auto_datetime_directory=True)
     experiment.log('config/config', config)
     experiment.log('config/run_configs', run_configs)
     experiment.log('config/config_space', str(config_space))
