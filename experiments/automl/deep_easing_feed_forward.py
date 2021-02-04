@@ -35,7 +35,7 @@ run_configs = {
         'a2e.evaluation.keras.val_loss_cost',
         'a2e.evaluation.reconstruction_error_cost',
         'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
-        'a2e.evaluation.uniform_reconstruction_error_cost',
+        'a2e.evaluation.keras.uniform_reconstruction_error_vs_compression_cost'
     ],
 }
 
