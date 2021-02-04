@@ -39,6 +39,8 @@ def plot_dense_layer_weights(layer, out_path=None, show=False):
 
     if show:
         plt.show()
+    else:
+        plt.close('all')
 
 
 def plot_conv_layer_weights(layer, out_path=None, show=False):
@@ -70,6 +72,8 @@ def plot_conv_layer_weights(layer, out_path=None, show=False):
 
     if show:
         plt.show()
+    else:
+        plt.close('all')
 
 
 def plot_model_layer_activations(model: Model, sample, out_path=None, show=False):
@@ -176,4 +180,4 @@ def plot(
         plt.show()
 
     if close and not show:
-        plt.close()
+        plt.close('all')
