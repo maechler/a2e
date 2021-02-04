@@ -85,13 +85,16 @@ class KerasModel(AbstractModel):
                 if 'callbacks' not in self.fit_kwargs:
                     self.fit_kwargs['callbacks'] = []
 
-                self.fit_kwargs['callbacks'].append(ModelCheckpoint(self._best_weights_file.name, monitor='val_loss', save_best_only=True))
+                self.fit_kwargs['callbacks'].append(ModelCheckpoint(self._best_weights_file.name, monitor='val_loss', save_best_only=True, save_weights_only=True))
 
             self.scaler.fit(np.concatenate((x_train, x_valid)))
             history = self.model.fit(x_train_scaled, y_train_scaled, epochs=int(budget), verbose=0, validation_data=(x_valid_scaled, y_valid_scaled), **self.fit_kwargs, **kwargs)
 
             if self.reload_best_weights and y_valid is not None:
-                self.model.load_weights(self._best_weights_file.name)
+                try:
+                    self.model.load_weights(self._best_weights_file.name)
+                except:
+                    pass  # probably NaN weights in model
         finally:
             if self._best_weights_file is not None:
                 os.unlink(self._best_weights_file.name)
