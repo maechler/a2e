@@ -142,8 +142,7 @@ def create_deep_easing_feed_forward_autoencoder(
     learning_rate_decay=0,
     sgd_momentum=None,
     dropout_rate_input=0,
-    dropout_rate_encoder=0,
-    dropout_rate_decoder=0,
+    dropout_rate_hidden_layers=0,
     dropout_rate_output=0,
     dropout_rate_threshold=0.01,
     **kwargs,
@@ -177,8 +176,8 @@ def create_deep_easing_feed_forward_autoencoder(
     for i, layer_dimension in enumerate(encoding_layer_dimensions):
         layer = Dense(layer_dimension, activation=hidden_layer_activations, name=f'hidden_encoding_layer_{i}')(layer)
 
-        if dropout_rate_encoder > dropout_rate_threshold:
-            layer = Dropout(dropout_rate_encoder)(layer)
+        if dropout_rate_hidden_layers > dropout_rate_threshold:
+            layer = Dropout(dropout_rate_hidden_layers)(layer)
 
     encoded = Dense(latent_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)
     layer = encoded
@@ -191,8 +190,8 @@ def create_deep_easing_feed_forward_autoencoder(
     for i, layer_dimension in enumerate(reversed(encoding_layer_dimensions)):
         layer = Dense(layer_dimension, activation=hidden_layer_activations, name=f'hidden_decoding_layer_{i}')(layer)
 
-        if dropout_rate_decoder > dropout_rate_threshold:
-            layer = Dropout(dropout_rate_decoder)(layer)
+        if dropout_rate_hidden_layers > dropout_rate_threshold:
+            layer = Dropout(dropout_rate_hidden_layers)(layer)
 
     if dropout_rate_output > dropout_rate_threshold:
         layer = Dropout(dropout_rate_output)(layer)

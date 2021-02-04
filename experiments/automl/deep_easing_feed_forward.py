@@ -61,8 +61,7 @@ config_space.add_hyperparameters([
     csh.CategoricalHyperparameter('output_layer_activation', ['relu', 'linear', 'sigmoid', 'tanh']),
 
     csh.UniformFloatHyperparameter('dropout_rate_input', lower=0.0, upper=0.99, default_value=0.2),
-    csh.UniformFloatHyperparameter('dropout_rate_encoder', lower=0.0, upper=0.99, default_value=0.2),
-    csh.UniformFloatHyperparameter('dropout_rate_decoder', lower=0.0, upper=0.99, default_value=0.2),
+    csh.UniformFloatHyperparameter('dropout_rate_hidden_layers', lower=0.0, upper=0.99, default_value=0.2),
     csh.UniformFloatHyperparameter('dropout_rate_output', lower=0.0, upper=0.99, default_value=0.2),
 
     csh.CategoricalHyperparameter('activity_regularizer', ['l1', 'l2']),
