@@ -190,7 +190,8 @@ def create_deep_easing_feed_forward_autoencoder(
     for i, layer_dimension in enumerate(reversed(encoding_layer_dimensions)):
         layer = Dense(layer_dimension, activation=hidden_layer_activations, name=f'hidden_decoding_layer_{i}')(layer)
 
-        if dropout_rate_hidden_layers > dropout_rate_threshold:
+        if dropout_rate_hidden_layers > dropout_rate_threshold \
+                and (i + 1 < len(encoding_layer_dimensions) or dropout_rate_output < dropout_rate_threshold):
             layer = Dropout(dropout_rate_hidden_layers)(layer)
 
     if dropout_rate_output > dropout_rate_threshold:
