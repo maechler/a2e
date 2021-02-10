@@ -12,6 +12,7 @@ import pickle
 import logging
 import matplotlib.pyplot as plt
 import warnings
+import tensorflow as tf
 from statistics import median
 from itertools import product
 from typing import Callable, Dict, List, Union
@@ -75,6 +76,7 @@ class Experiment:
 
         if suppress_warnings:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+            tf.get_logger().setLevel('ERROR')
             logging.disable()
         else:
             warnings.simplefilter(action='default', category=Warning)
@@ -263,7 +265,7 @@ class Experiment:
 
                     self.log(f'{data_frame_log_path}/metrics', data_frame[log_metrics])
                 else:
-                    self.log(f'{data_frame_log_path}/metrics', data_frame[['reconstruction_error', 'reconstruction_error_rolling']])
+                    self.log(f'{data_frame_log_path}/metrics', data_frame[['reconstruction_error', 'reconstruction_error_rolling', 'z_score', 'z_score_rolling']])
 
                 for sample_index in log_samples:
                     ylim = [0, 1] if all(0.0 <= value <= 1.0 for value in samples_y[sample_index]+reconstruction[sample_index]) else None
