@@ -1,6 +1,7 @@
 import numpy as np
 import os
-from tempfile import NamedTemporaryFile
+import secrets
+from pathlib import Path
 from typing import Callable, Optional, Dict, Union
 from tensorflow.python.keras.callbacks import ModelCheckpoint
 from tensorflow.python.keras.models import Model
@@ -17,6 +18,7 @@ class KerasModel(AbstractModel):
         fit_kwargs: Optional[Dict] = None,
         config: Optional[Dict] = None,
         reload_best_weights: bool = True,
+        temporary_file_dir: str = os.path.join(Path.home(), '.a2e/tmp'),
     ):
         self._create_model_function = create_model_function
         self._evaluation_function = evaluation_function
@@ -24,8 +26,9 @@ class KerasModel(AbstractModel):
         self.fit_kwargs = fit_kwargs if fit_kwargs is not None else {}
         self.loaded_config = {}
         self.scaler: Union[Scaler, None] = None
-        self.reload_best_weights = reload_best_weights
-        self._best_weights_file: NamedTemporaryFile = None
+        self.reload_best_weights: bool = reload_best_weights
+        self.temporary_file_dir: str = temporary_file_dir
+        self._best_weights_file: Union[str, None] = None
 
         if config is not None:
             self.load_config(config)
@@ -80,25 +83,24 @@ class KerasModel(AbstractModel):
 
         try:
             if self.reload_best_weights and y_valid is not None:
-                self._best_weights_file = NamedTemporaryFile(delete=False, suffix='.h5')
+                self._best_weights_file = self._get_temporary_file_path()
 
                 if 'callbacks' not in self.fit_kwargs:
                     self.fit_kwargs['callbacks'] = []
 
-                self.fit_kwargs['callbacks'].append(ModelCheckpoint(self._best_weights_file.name, monitor='val_loss', save_best_only=True, save_weights_only=True))
+                self.fit_kwargs['callbacks'].append(ModelCheckpoint(self._best_weights_file, monitor='val_loss', save_best_only=True, save_weights_only=True))
 
             self.scaler.fit(np.concatenate((x_train, x_valid)))
             history = self.model.fit(x_train_scaled, y_train_scaled, epochs=int(budget), verbose=0, validation_data=(x_valid_scaled, y_valid_scaled), **self.fit_kwargs, **kwargs)
 
             if self.reload_best_weights and y_valid is not None:
                 try:
-                    self.model.load_weights(self._best_weights_file.name)
+                    self.model.load_weights(self._best_weights_file)
                 except:
                     pass  # probably NaN weights in model
         finally:
-            if self._best_weights_file is not None:
-                os.unlink(self._best_weights_file.name)
-                self._best_weights_file.close()
+            if os.path.isfile(self._best_weights_file):
+                os.remove(self._best_weights_file)
                 self._best_weights_file = None
 
         return history
@@ -109,3 +111,11 @@ class KerasModel(AbstractModel):
         transformed_prediction = self.scaler.inverse_transform(prediction)
 
         return transformed_prediction
+
+    def _get_temporary_file_path(self, suffix='.h5'):
+        if not os.path.exists(self.temporary_file_dir):
+            os.makedirs(self.temporary_file_dir)
+
+        file_name = secrets.token_hex(nbytes=16)
+
+        return os.path.join(self.temporary_file_dir, file_name + suffix)
