@@ -6,16 +6,18 @@ from a2e.model.keras import create_deep_easing_feed_forward_autoencoder
 from a2e.model import KerasModel
 from a2e.optimizer import create_optimizer, OptimizationResult
 from a2e.utility import load_from_module
-import ConfigSpace as cs
-import ConfigSpace.hyperparameters as csh
-
+from experiments.automl.config_space import create_config_space
 
 config = {
     'validation_split': 0.2,
     'data_column': 'fft',
     'max_iterations': 1000,
-    'min_budget': 30,
-    'max_budget': 30,
+    'min_budget': 50,
+    'max_budget': 50,
+    'threshold_percentiles': [
+        95,
+        99,
+    ],
 }
 
 run_configs = {
@@ -25,11 +27,7 @@ run_configs = {
          '1200rpm',
     ],
     'optimizer': [
-        # 'BayesianGaussianProcessOptimizer',
         'BayesianRandomForrestOptimizer',
-        # 'BayesianHyperbandOptimizer',
-        # 'HyperbandOptimizer',
-        # 'RandomOptimizer',
     ],
     'evaluation_function': [
         'a2e.evaluation.keras.val_loss_cost',
@@ -39,40 +37,7 @@ run_configs = {
     ],
 }
 
-config_space = cs.ConfigurationSpace(seed=1234)
-
-config_space.add_hyperparameters([
-    csh.CategoricalHyperparameter('_scaler', [
-        'none',
-        'min_max',
-        'std',
-    ]),
-
-    csh.UniformIntegerHyperparameter('_batch_size', lower=16, upper=512),
-    csh.UniformFloatHyperparameter('learning_rate', lower=1e-6, upper=1e-1, log=True),
-    csh.UniformFloatHyperparameter('learning_rate_decay', lower=1e-8, upper=1e-2, log=True),
-    csh.CategoricalHyperparameter('loss', ['mse', 'mae', 'binary_crossentropy']),
-
-    csh.Constant('input_dimension', value=1025),
-    csh.OrdinalHyperparameter('number_of_hidden_layers', list(range(1, 11, 2))),
-    csh.UniformIntegerHyperparameter('latent_dimension', lower=10, upper=1024, log=True),
-    csh.CategoricalHyperparameter('easing', ['ease_linear', 'ease_in_quad', 'ease_out_quad']),
-    csh.CategoricalHyperparameter('hidden_layer_activations', ['relu', 'linear', 'sigmoid', 'tanh']),
-    csh.CategoricalHyperparameter('output_layer_activation', ['relu', 'linear', 'sigmoid', 'tanh']),
-
-    csh.UniformFloatHyperparameter('dropout_rate_input', lower=0.0, upper=0.99),
-    csh.UniformFloatHyperparameter('dropout_rate_hidden_layers', lower=0.0, upper=0.99),
-    csh.UniformFloatHyperparameter('dropout_rate_output', lower=0.0, upper=0.99),
-
-    csh.CategoricalHyperparameter('activity_regularizer', ['l1', 'l2']),
-    csh.UniformFloatHyperparameter('l1_activity_regularizer_factor', lower=1e-6, upper=1e-1, default_value=1e-2, log=True),
-    csh.UniformFloatHyperparameter('l2_activity_regularizer_factor', lower=1e-6, upper=1e-1, default_value=1e-2, log=True),
-])
-
-# Conditions
-config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('l1_activity_regularizer_factor'), config_space.get_hyperparameter('activity_regularizer'), 'l1'))
-config_space.add_condition(cs.EqualsCondition(config_space.get_hyperparameter('l2_activity_regularizer_factor'), config_space.get_hyperparameter('activity_regularizer'), 'l2'))
-
+config_space = create_config_space()
 
 if __name__ == '__main__':
     experiment = Experiment(auto_datetime_directory=True)
@@ -123,12 +88,15 @@ if __name__ == '__main__':
             keras_model = cast(KerasModel, optimizer.refit_by_percentile_rank(log_model_config['percentile_rank']))
 
             experiment.log_keras_model(keras_model.model, key=log_model_config['key'])
-            experiment.log_keras_predictions(
-                keras_model,
-                bearing_dataset.as_dict(config['data_column']),
-                key=log_model_config['key'],
-                labels=bearing_dataset.as_dict(config['data_column'], labels_only=True),
-                has_multiple_features=True,
-            )
+
+            for threshold_percentile in config['threshold_percentiles']:
+                experiment.log_keras_predictions(
+                    keras_model,
+                    bearing_dataset.as_dict(config['data_column']),
+                    key=f'{log_model_config["key"]}_{threshold_percentile}',
+                    labels=bearing_dataset.as_dict(config['data_column'], labels_only=True),
+                    has_multiple_features=True,
+                    threshold_percentile=threshold_percentile,
+                )
 
     experiment.multi_run(run_configs, run_callable)
