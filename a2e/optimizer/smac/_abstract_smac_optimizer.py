@@ -41,6 +41,7 @@ class AbstractSMACOptimizer(AbstractOptimizer):
             'cs': self.config_space,
             'deterministic': 'true',
             'output_dir': self.temp_dir,
+            'abort_on_first_run_crash': False,
             **scenario_kwargs,
         })
         self.runner = ModelTaeRunner(**({
