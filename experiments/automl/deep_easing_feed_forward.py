@@ -22,9 +22,9 @@ config = {
 
 run_configs = {
     'data_set': [
-         '400rpm',
-         '800rpm',
-         '1200rpm',
+         '400rpm_v2',
+         '800rpm_v2',
+         '1200rpm_v2',
     ],
     'optimizer': [
         'BayesianRandomForrestOptimizer',
