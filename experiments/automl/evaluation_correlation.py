@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from statistics import median
 from numpy import percentile
-from scipy.stats import pearsonr, spearmanr
 from sklearn.model_selection import train_test_split
 from a2e.datasets.bearing import load_data
 from a2e.experiment import Experiment
@@ -10,28 +9,29 @@ from a2e.model.keras import create_deep_easing_feed_forward_autoencoder
 from a2e.model import KerasModel
 from a2e.processing.stats import compute_reconstruction_error, mad
 from a2e.utility import load_from_module, z_score, compute_classification_metrics, compute_roc
-from experiments.automl.deep_easing_feed_forward import config_space
+from experiments.automl.config_space import create_config_space
 
 config = {
     'validation_split': 0.2,
     'data_column': 'fft',
     'num_evaluations': 1000,
-    'budget': 30,
+    'budget': 50,
+    'threshold_percentile': 99,
 }
 
 run_configs = {
     'data_set': [
-         '400rpm',
-         '800rpm',
-         '1200rpm',
+         '400rpm_v2',
+         '800rpm_v2',
+         '1200rpm_v2',
     ],
     'evaluation_function': [
-        'a2e.evaluation.keras.val_loss_cost',
         'a2e.evaluation.reconstruction_error_cost',
         'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
         'a2e.evaluation.keras.uniform_reconstruction_error_vs_compression_cost'
     ],
 }
+config_space = create_config_space()
 
 
 if __name__ == '__main__':
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         train = bearing_dataset.train(column=config['data_column'], as_numpy=True)
         test = bearing_dataset.test(column=config['data_column'], as_numpy=True)
         test_labels = bearing_dataset.test(column=config['data_column'], add_label=True)['label']
-        threshold_percentile = 99
+        threshold_percentile = config['threshold_percentile']
         x_train, x_valid, y_train, y_valid = train_test_split(
             train,
             train,
@@ -90,21 +90,13 @@ if __name__ == '__main__':
                 'recall': metrics['recall'],
                 'f_score': metrics['f_score'],
                 'matthews_cc': metrics['matthews_cc'],
+                **{f'info_{k}': v for k, v in evaluation_result.info.items()},
                 **{f'config_{k}': v for k, v in current_config.items()}
             }
 
             history = history.append(history_record, ignore_index=True)
 
             experiment.log('history', history)
-            experiment.log_keras_model(model.model, key=f'model_id_{i-1}')
-
-            for key, _ in history_record.items():
-                if key == 'cost' or key.startswith('config_'):
-                    continue
-
-                if len(history) > 1:
-                    experiment.log(f'{key}.pearsonr.txt', pearsonr(history['cost'].values, history[key].values)[0], mode='w')
-                    experiment.log(f'{key}.spearmanr.txt', spearmanr(history['cost'].values, history[key].values)[0], mode='w')
 
 
     experiment.multi_run(run_configs, run_callable)
