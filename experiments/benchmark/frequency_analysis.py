@@ -15,7 +15,6 @@ config = {
     'bearing_diameter': 8.3,
     'frequency_bandwidth': 5,
     # 'zscore_threshold': 3,
-    'zscore_threshold_percentile': 99,
     'colors': [
         '#D4373E',
         '#FFA039',
@@ -28,12 +27,12 @@ config = {
 }
 
 run_configs = [
-    {'rpm': 400, 'data_set': '400rpm'},
-    {'rpm': 400, 'data_set': '400rpm_v2'},
-    {'rpm': 800, 'data_set': '800rpm'},
-    {'rpm': 800, 'data_set': '800rpm_v2'},
-    {'rpm': 1200, 'data_set': '1200rpm'},
-    {'rpm': 1200, 'data_set': '1200rpm_v2'},
+    {'rpm': 400, 'data_set': '400rpm_v2', 'threshold_percentile': 95},
+    {'rpm': 400, 'data_set': '400rpm_v2', 'threshold_percentile': 99},
+    {'rpm': 800, 'data_set': '800rpm_v2', 'threshold_percentile': 95},
+    {'rpm': 800, 'data_set': '800rpm_v2', 'threshold_percentile': 99},
+    {'rpm': 1200, 'data_set': '1200rpm_v2', 'threshold_percentile': 95},
+    {'rpm': 1200, 'data_set': '1200rpm_v2', 'threshold_percentile': 99},
 ]
 
 experiment = Experiment(auto_datetime_directory=False)
@@ -94,7 +93,7 @@ def run_callable(run_config: dict):
         largest_zscore = 0
 
         for defect_frequency in defect_frequencies:
-            zscore_threshold = config['zscore_threshold'] if 'zscore_threshold' in config else percentile(defect_frequency['train_z_scores'], config['zscore_threshold_percentile'])
+            zscore_threshold = config['zscore_threshold'] if 'zscore_threshold' in config else percentile(defect_frequency['train_z_scores'], run_config['threshold_percentile'])
             row_mean = row.iloc[max(int(defect_frequency['frequency']) - bandwidth, 0):int(defect_frequency['frequency']) + bandwidth].mean()
             z_score = compute_z_score(row_mean, defect_frequency['train_median'], defect_frequency['train_mad'])
             is_anomaly = is_anomaly or (z_score > zscore_threshold)
