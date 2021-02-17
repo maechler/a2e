@@ -115,6 +115,7 @@ def plot(
     yticks=None,
     xticks=None,
     vlines=[],
+    alpha=1,
     time_formatting=False,
     out_path=None,
     out_formats=['png'],
@@ -150,9 +151,9 @@ def plot(
         ax.axvline(x=vline['x'], color=vline['color'], label=vline['label'], linestyle=linestyle)
 
     if plot_type == 'scatter':
-        ax.scatter(x, y)
+        ax.scatter(x, y, alpha=alpha)
     else:
-        ax.plot(x, y, color=color, label=label)
+        ax.plot(x, y, color=color, label=label, alpha=alpha)
 
     if xlabel is not None:
         ax.set_xlabel(xlabel, labelpad=15)
