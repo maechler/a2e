@@ -3,7 +3,7 @@ font.size: 18
 font.family: Roboto
 
 # colors
-axes.prop_cycle: cycler('color', ['3B90C3', 'D4373E', '3BCB69', 'FFA039', '7D11CD', 'DC72FF'])
+axes.prop_cycle: cycler('color', ['3B90C3', 'D4373E', '3BCB69', 'FFA039', '7D11CD', 'DC72FF', '6E5348'])
 patch.facecolor: 3B90C3
 
 #axes.prop_cycle: cycler('color', ['648ed4', '89c77c', 'd27b75', 'e79c67'])
