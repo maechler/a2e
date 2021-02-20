@@ -21,17 +21,19 @@ config = {
 }
 
 run_configs = {
-    'optimizer': [
-        'BayesianRandomForrestOptimizer',
-        'RandomOptimizer',
-    ],
     'data_set': [
          '400rpm_v2',
-         # '800rpm_v2',
-         # '1200rpm_v2',
+         '800rpm_v2',
+         '1200rpm_v2',
+    ],
+    'optimizer': [
+        'BayesianRandomForrestOptimizer',
     ],
     'evaluation_function': [
+        # 'a2e.evaluation.keras.val_loss_cost',
         'a2e.evaluation.reconstruction_error_cost',
+        # 'a2e.evaluation.keras.reconstruction_error_vs_compression_cost',
+        # 'a2e.evaluation.keras.uniform_reconstruction_error_vs_compression_cost'
     ],
 }
 
