@@ -121,6 +121,8 @@ def plot(
     out_formats=['png'],
     show=False,
     show_legend=True,
+    legend_handles=None,
+    legend_loc='best',
     create_figure=True,
     close=True,
     plot_type='plot',
@@ -171,7 +173,11 @@ def plot(
         ax.set_ylim(ylim)
 
     if show_legend:
-        ax.legend()
+        if legend_handles is None:
+            ax.legend(loc=legend_loc, handlelength=1)
+        else:
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles=handles + legend_handles, loc=legend_loc, handlelength=1)
 
     if out_path:
         for out_format in out_formats:
