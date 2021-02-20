@@ -1,20 +1,27 @@
 from sklearn.preprocessing import MinMaxScaler
 from a2e.experiment import Experiment
 from a2e.datasets.bearing import load_data
-from a2e.model.keras import create_feed_forward_autoencoder
+from a2e.model.keras import create_deep_easing_feed_forward_autoencoder
 from a2e.processing.normalization import Scaler
 
 config = {
-    'input_size': 1025,
-    'encoding_size': 512,
+    'input_dimension': 1025,
+    'latent_dimension': 512,
     'hidden_layer_activations': 'relu',
     'output_layer_activation': 'relu',
+    'dropout_rate_input': .2,
+    'dropout_rate_hidden_layers': .2,
+    'dropout_rate_output': .2,
+    'activity_regularizer': 'l2',
     'loss': 'mse',
-    'epochs': 30,
+    'epochs': 50,
     'shuffle': True,
     'validation_split': 0.2,
     'data_column': 'fft',
-    'threshold_percentile': 0.99,
+    'threshold_percentiles': [
+        95,
+        99,
+    ],
 }
 run_configs = {
     'data_set': [
@@ -24,15 +31,19 @@ run_configs = {
     ],
 }
 
-experiment = Experiment(auto_datetime_directory=False)
+experiment = Experiment(auto_datetime_directory=True)
 experiment.log('config/config', config)
 experiment.log('config/run_configs', run_configs)
 
-model = create_feed_forward_autoencoder(
-    input_dimension=config['input_size'],
-    encoding_dimension=config['encoding_size'],
+model = create_deep_easing_feed_forward_autoencoder(
+    input_dimension=config['input_dimension'],
+    latent_dimension=config['latent_dimension'],
     hidden_layer_activations=config['hidden_layer_activations'],
     output_layer_activation=config['output_layer_activation'],
+    dropout_rate_input=config['dropout_rate_input'],
+    dropout_rate_hidden_layers=config['dropout_rate_hidden_layers'],
+    dropout_rate_output=config['dropout_rate_output'],
+    activity_regularizer=config['activity_regularizer'],
     loss=config['loss'],
 )
 
@@ -42,7 +53,8 @@ def run_callable(run_config: dict):
     bearing_dataset = load_data(run_config['data_set'])
     data_frames = bearing_dataset.as_dict(column=config['data_column'])
     labels = bearing_dataset.as_dict(column=config['data_column'], labels_only=True)
-    train_samples = Scaler(MinMaxScaler).fit_transform(data_frames['train'].to_numpy())
+    train_scaler = Scaler(MinMaxScaler)
+    train_samples = train_scaler.fit_transform(data_frames['train'].to_numpy())
 
     experiment.print('Fitting model')
     history = model.fit(
@@ -59,14 +71,17 @@ def run_callable(run_config: dict):
 
     experiment.log_keras_model(best_model, key='best')
     experiment.log_history(history)
-    experiment.log_keras_predictions(
-        model=best_model,
-        data_frames=data_frames,
-        labels=labels,
-        pre_processing=lambda data_frame: Scaler(MinMaxScaler).fit_transform(data_frame.to_numpy()),
-        has_multiple_features=True,
-        threshold_percentile=config['threshold_percentile'],
-    )
+
+    for percentile in config['threshold_percentiles']:
+        experiment.log_keras_predictions(
+            model=best_model,
+            data_frames=data_frames,
+            labels=labels,
+            pre_processing=lambda data_frame: train_scaler.transform(data_frame.to_numpy()),
+            has_multiple_features=True,
+            threshold_percentile=percentile,
+            key=f'{percentile}_percentile',
+        )
 
 
 experiment.multi_run(run_configs, run_callable)
