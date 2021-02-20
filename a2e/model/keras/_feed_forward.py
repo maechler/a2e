@@ -1,5 +1,4 @@
 import math
-
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.python.keras import regularizers
