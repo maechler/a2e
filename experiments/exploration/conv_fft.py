@@ -1,6 +1,7 @@
+from sklearn.preprocessing import MinMaxScaler
 from a2e.experiment import Experiment
 from a2e.datasets.bearing import load_data
-from a2e.processing.normalization import min_max_scale
+from a2e.processing.normalization import Scaler
 from a2e.utility import build_samples, load_from_module
 
 config = {
@@ -10,9 +11,9 @@ config = {
  'validation_split': 0.1,
  'data_column': 'fft',
  'model_functions': [
-     'a2e.models.create_conv_max_pool_autoencoder',
-     'a2e.models.create_conv_dense_autoencoder',
-     'a2e.models.create_conv_transpose_autoencoder',
+     'a2e.model.keras.create_conv_max_pool_autoencoder',
+     'a2e.model.keras.create_conv_dense_autoencoder',
+     'a2e.model.keras.create_conv_transpose_autoencoder',
  ],
  'scalings': [
      'none',
@@ -46,8 +47,8 @@ def run_callable(run_config: dict):
         return x[x.rpm > 0]
 
     def pre_processing(data_frame):
-        if run_config['scaling'] is 'min_max':
-            samples = min_max_scale(data_frame.to_numpy(), fit_mode=run_config['fit_mode'])
+        if run_config['scaling'] == 'min_max':
+            samples = Scaler(MinMaxScaler, fit_mode=run_config['fit_mode']).fit_transform(data_frame.to_numpy())
         else:
             samples = data_frame.to_numpy()
 

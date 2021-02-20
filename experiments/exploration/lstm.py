@@ -1,7 +1,9 @@
+from sklearn.preprocessing import MinMaxScaler
+
 from a2e.experiment import Experiment
 from a2e.datasets.bearing import load_data
-from a2e.models import create_lstm_autoencoder
-from a2e.processing.normalization import min_max_scale
+from a2e.model.keras import create_lstm_autoencoder
+from a2e.processing.normalization import Scaler
 from a2e.utility import build_samples
 
 config = {
@@ -46,8 +48,8 @@ def run_callable(run_config: dict):
     def pre_processing(data_frame):
         samples = build_samples(data_frame.to_numpy().flatten(), config['input_size'], target_dimensions=3)
 
-        if run_config['scaling'] is 'min_max':
-            samples = min_max_scale(data_frame.to_numpy(), fit_mode=run_config['fit_mode'])
+        if run_config['scaling'] == 'min_max':
+            samples = Scaler(MinMaxScaler, fit_mode=run_config['fit_mode']).fit_transform(data_frame.to_numpy())
 
         return samples
 
