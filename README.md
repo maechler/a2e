@@ -1,4 +1,4 @@
-# a2e - a library to implement auto autoencoders
+# a2e - a library to auto tune autoencoders
 
 This library is based on [Keras](https://keras.io/), [SMAC](https://github.com/automl/SMAC3/) and [HpBandSter](https://github.com/automl/HpBandSter/). 
 It implements AutoML methods that are designed, but not limited to auto tune autoencoder architectures.
@@ -14,6 +14,13 @@ It implements AutoML methods that are designed, but not limited to auto tune aut
 - Providing various cost functions focused on autoencoders
 - Providing Keras models for vanilla, convolutional and recurrent autoencoders
 - Providing experiment logging including git repository state, models (including weights and activations plots), predictions, samples, metrics
+
+## Installation as library
+
+```
+pip install git+https://github.com/maechler/a2e@master
+pip install -r https://raw.githubusercontent.com/maechler/a2e/master/requirements.txt
+```
 
 ## Dataset
 
@@ -103,4 +110,10 @@ open doc/a2e/index.html;
 
 ```
 python experiments/feed_forward.py;
+```
+
+### Run on a specific CUDA GPU
+
+```
+python a2e/runner/cuda_runner.py experiments/feed_forward.py --gpu=1
 ```
