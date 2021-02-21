@@ -116,6 +116,8 @@ def plot(
     xticks=None,
     vlines=[],
     alpha=1,
+    linestyle='solid',
+    linewidth=None,
     time_formatting=False,
     out_path=None,
     out_formats=['png'],
@@ -155,7 +157,7 @@ def plot(
     if plot_type == 'scatter':
         ax.scatter(x, y, alpha=alpha)
     else:
-        ax.plot(x, y, color=color, label=label, alpha=alpha)
+        ax.plot(x, y, color=color, label=label, alpha=alpha, linestyle=linestyle, linewidth=linewidth)
 
     if xlabel is not None:
         ax.set_xlabel(xlabel, labelpad=15)
