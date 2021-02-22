@@ -14,7 +14,7 @@ from experiments.automl.config_space import create_config_space
 config = {
     'validation_split': 0.2,
     'data_column': 'fft',
-    'num_evaluations': 5,
+    'num_evaluations': 1000,
     'budget': 50,
     'threshold_percentile': 99,
 }
