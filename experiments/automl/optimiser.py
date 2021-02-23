@@ -37,8 +37,11 @@ run_configs = {
 
 config_space = create_config_space(
     min_dropout_rate_input=.2,
-    min_dropout_rate_hidden_layers=.5,
+    max_dropout_rate_input=.8,
+    min_dropout_rate_hidden_layers=.2,
+    max_dropout_rate_hidden_layers=.8,
     min_dropout_rate_output=.2,
+    max_dropout_rate_output=.8,
 )
 
 

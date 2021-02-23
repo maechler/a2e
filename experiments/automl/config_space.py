@@ -14,6 +14,9 @@ def create_config_space(
     min_dropout_rate_input: float = 0.0,
     min_dropout_rate_hidden_layers: float = 0.0,
     min_dropout_rate_output: float = 0.0,
+    max_dropout_rate_input: float = 0.99,
+    max_dropout_rate_hidden_layers: float = 0.99,
+    max_dropout_rate_output: float = 0.99,
 ):
     config_space = cs.ConfigurationSpace(seed=1234)
 
@@ -61,9 +64,9 @@ def create_config_space(
 
     if dropout:
         config_space.add_hyperparameters([
-            csh.UniformFloatHyperparameter('dropout_rate_input', lower=min_dropout_rate_input, upper=0.99),
-            csh.UniformFloatHyperparameter('dropout_rate_hidden_layers', lower=min_dropout_rate_hidden_layers, upper=0.99),
-            csh.UniformFloatHyperparameter('dropout_rate_output', lower=min_dropout_rate_output, upper=0.99),
+            csh.UniformFloatHyperparameter('dropout_rate_input', lower=min_dropout_rate_input, upper=max_dropout_rate_input),
+            csh.UniformFloatHyperparameter('dropout_rate_hidden_layers', lower=min_dropout_rate_hidden_layers, upper=max_dropout_rate_hidden_layers),
+            csh.UniformFloatHyperparameter('dropout_rate_output', lower=min_dropout_rate_output, upper=max_dropout_rate_output),
         ])
 
     if activity_regularizer:
