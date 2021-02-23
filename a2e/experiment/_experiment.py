@@ -71,8 +71,12 @@ class Experiment:
 
         self.print(f'Created new experiment "{self.experiment_id}"')
         self.log('timing.log', f'experiment_start={self.experiment_start}')
-        self.log('git/hash', git_hash())
-        self.log('git/state.diff', git_diff())
+
+        try:
+            self.log('git/hash', git_hash())
+            self.log('git/state.diff', git_diff())
+        except:
+            pass  # not a git repo
 
         if suppress_warnings:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
