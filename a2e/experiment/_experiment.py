@@ -331,7 +331,7 @@ class Experiment:
 
         def run_callable_wrapper(params):
             if auto_run_id:
-                self.run_id = re.sub('[(){}<>\',\s"]', '', '/'.join(map(str, params.values())))
+                self.run_id = re.sub(r'[(){}<>\',\s"]', '', '/'.join(map(str, params.values())))
             elif run_id_callable is not None:
                 self.run_id = run_id_callable(params)
 

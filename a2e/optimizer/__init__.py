@@ -13,12 +13,12 @@ from a2e.optimizer.smac import BayesianRandomForrestOptimizer
 from a2e.optimizer.smac import BayesianGaussianProcessOptimizer
 
 __all__ = [
-    OptimizationResult,
-    AbstractOptimizer,
-    create_optimizer,
-    BayesianRandomForrestOptimizer,
-    BayesianGaussianProcessOptimizer,
-    BayesianHyperbandOptimizer,
-    HyperbandOptimizer,
-    RandomOptimizer,
+    'OptimizationResult',
+    'AbstractOptimizer',
+    'create_optimizer',
+    'BayesianRandomForrestOptimizer',
+    'BayesianGaussianProcessOptimizer',
+    'BayesianHyperbandOptimizer',
+    'HyperbandOptimizer',
+    'RandomOptimizer',
 ]

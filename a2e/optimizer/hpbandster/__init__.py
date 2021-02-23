@@ -9,5 +9,5 @@ from a2e.optimizer.hpbandster._hyperband_optimizer import HyperbandOptimizer
 from a2e.optimizer.hpbandster._random_optimizer import RandomOptimizer
 
 __all__ = [
-    ModelWorker,
+    'ModelWorker',
 ]
