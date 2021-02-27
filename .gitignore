@@ -13,3 +13,4 @@
 
 /doc/*
 !/doc/.gitkeep
+!/doc/readme.png

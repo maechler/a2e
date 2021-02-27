@@ -1,7 +1,7 @@
 # a2e - a library to auto tune autoencoders
 
 This library is based on [Keras](https://keras.io/), [SMAC](https://github.com/automl/SMAC3/) and [HpBandSter](https://github.com/automl/HpBandSter/). 
-It implements AutoML methods that are designed, but not limited to auto tune autoencoder architectures.
+It implements AutoML methods that are designed, but not limited to auto tune autoencoder architectures. Examples of its usage can be found in [experiments](./experiments).
 
 ## Features
 
@@ -14,6 +14,8 @@ It implements AutoML methods that are designed, but not limited to auto tune aut
 - Providing various cost functions focused on autoencoders
 - Providing Keras models for vanilla, convolutional and recurrent autoencoders
 - Providing experiment logging including git repository state, models (including weights and activations plots), predictions, samples, metrics
+
+![Features overview](./doc/readme.png)
 
 ## Installation as library
 
