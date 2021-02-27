@@ -1,4 +1,4 @@
 """
-The :mod:`a2e.datasets` provides access to test datasets
+The module `a2e.datasets` provides access to the bearing data set a2e-data
 """
 

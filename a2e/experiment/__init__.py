@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.experiment` provides utility functions to create and log experiments
+The module `a2e.experiment` provides utility functions to create and log experiments
 """
 
 from ._experiment import Experiment

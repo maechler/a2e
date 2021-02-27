@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.plotter` provides utility functions to plot data and models
+The module `a2e.plotter` provides utility functions to plot data and models based on Matplotlib
 """
 
 from ._plotter import plot

@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.models` provides different autoencoder models
+The module `a2e.model.keras` provides several methods to create different types of autoencoders
 """
 
 from ._feed_forward import create_feed_forward_autoencoder

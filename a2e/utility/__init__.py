@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.utility` provides various utility functions
+The module `a2e.utility` provides various utility functions
 """
 
 from ._utility import timestamp_to_date_time

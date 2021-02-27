@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.optimizer` ..
+The module `a2e.optimizer` provides an abstract optimizer and concrete adapters for the SMAC and HpBandSter optimizers
 """
 
 from a2e.optimizer._optimization_result import OptimizationResult

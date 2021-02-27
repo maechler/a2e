@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.model` ...
+The module `a2e.model` provides an abstract base model and a concrete Keras model
 """
 
 from a2e.model._abstract_model import AbstractModel

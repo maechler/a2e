@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.evaluation` ...
+The module `a2e.evaluation.keras` contains cost functions focused on Keras models
 """
 
 from a2e.evaluation.keras._evaluation import loss_cost

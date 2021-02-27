@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.automl.optimizer` ...
+The module `a2e.automl.optimizer.hpbandster` provides a model worker to run a2e models with HpBandSter
 """
 
 from a2e.optimizer.hpbandster._model_worker import ModelWorker

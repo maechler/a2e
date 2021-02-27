@@ -148,8 +148,7 @@ def load_data(data_set_key: str, a2e_data_path: str = '../../../a2e-data/data', 
 
     Returns
     -------
-    data_frame, windows: DataFrame, dict
-        A data_frame indexed by timestamp and a dictionary containing data set windows for `train`, `test`, `test_healthy` and `test_anomalous`
+    BearingDataSet: A bearing data set object
     """
 
     if a2e_data_path is not None and not a2e_data_path.startswith('http') and not a2e_data_path.startswith('file://'):

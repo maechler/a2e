@@ -16,23 +16,6 @@ def create_feed_forward_autoencoder(
     loss='binary_crossentropy',
     activity_regularizer=None,
 ) -> Model:
-    """Creates a feed forward Keras autoencoder model
-
-    Parameters
-    ----------
-    input_dimension : integer value for input dimension
-
-    encoding_dimension : integer value for encoding dimension
-
-    optimizer : (optional) defaults to 'adam'
-
-    loss : (optional) defaults to 'binary_crossentropy'
-
-    Returns
-    -------
-    model : a compiled Keras model
-    """
-
     input_layer = Input(shape=(input_dimension,), name='input')
     layer = input_layer
     encoded = Dense(encoding_dimension, activation=hidden_layer_activations, activity_regularizer=activity_regularizer, name='encoded')(layer)

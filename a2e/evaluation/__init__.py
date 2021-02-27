@@ -1,5 +1,5 @@
 """
-The :mod:`a2e.evaluation` ...
+The module `a2e.evaluation` contains general model cost functions
 """
 
 from a2e.evaluation._evaluation_result import EvaluationResult
